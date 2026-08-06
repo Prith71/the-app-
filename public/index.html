@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Angy Productions</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="grain"></div>
+
+<nav class="filmstrip">
+  <div class="sprockets">
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <div class="navbar">
+    <div class="brandmark" onclick="go('home')">
+      <img class="clap-mini" src="assets/logo-icon.png" alt="Angy Productions logo">
+      <span>ANGY PRODUCTIONS</span>
+    </div>
+    <div class="navlinks">
+      <button data-nav="home" onclick="go('home')" class="active">Home</button>
+      <button data-nav="goals" onclick="go('goals')">Goals</button>
+      <button data-nav="founders" onclick="go('founders')">Founders</button>
+      <button data-nav="productions" onclick="go('productions')">Productions</button>
+      <button data-nav="chat" onclick="go('chat')">Chat</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+  <!-- HOME -->
+  <section class="page active" id="page-home">
+    <div class="hero">
+      <img class="hero-logo" src="assets/logo-icon.png" alt="Angy Productions logo">
+      <h1>ANGY<br><span>PRODUCTIONS</span></h1>
+      <p class="tagline">A film house that strives to perfect cinema while also having fun in the process.</p>
+      <div class="hero-cta">
+        <button class="btn primary" onclick="go('goals')">Read the goals</button>
+        <button class="btn" onclick="go('productions')">See productions</button>
+      </div>
+      <div class="socials">
+        <a class="social-link" href="https://instagram.com/angy.production" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.5" y="2.5" width="19" height="19" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.3" stroke="currentColor" stroke-width="1.8"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor"/></svg>
+          <span>@angy.production</span>
+        </a>
+        <a class="social-link" href="https://youtube.com/@AngyProductions1" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="5.5" width="20" height="13" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 9.3v5.4l4.8-2.7-4.8-2.7z" fill="currentColor"/></svg>
+          <span>@AngyProductions1</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- GOALS -->
+  <section class="page" id="page-goals">
+    <div class="wrap">
+      <div class="page-head">
+        <div class="section-label">Shot list</div>
+        <h1 class="page-title">The Goals</h1>
+        <p class="page-sub">What we hope to achieve:</p>
+      </div>
+      <div class="shotlist" id="goals-list"></div>
+    </div>
+  </section>
+
+  <!-- FOUNDERS -->
+  <section class="page" id="page-founders">
+    <div class="wrap">
+      <div class="page-head">
+        <div class="section-label">Opening credits</div>
+        <h1 class="page-title">Founders</h1>
+        <p class="page-sub">The names behind the slate.</p>
+      </div>
+      <div class="prod-toolbar">
+        <div class="hint">Photos and bios can only be added or changed by Core Members.</div>
+        <button class="core-pill" id="core-toggle-4" onclick="toggleCore()">🔒 Core access</button>
+      </div>
+      <div class="founders-grid" id="founders-grid"></div>
+    </div>
+  </section>
+
+  <!-- PRODUCTIONS -->
+  <section class="page" id="page-productions">
+    <div class="wrap">
+      <div class="page-head">
+        <div class="section-label">Now in production</div>
+        <h1 class="page-title">Productions</h1>
+        <p class="page-sub">Can only be edited by Core Members.</p>
+      </div>
+      <div class="prod-toolbar">
+        <div class="hint" id="prod-count">Loading productions…</div>
+        <button class="core-pill" id="core-toggle" onclick="toggleCore()">🔒 Core access</button>
+      </div>
+      <div class="add-row" id="add-row" style="display:none;">
+        <input type="text" id="new-prod" placeholder="Add a production title…" onkeydown="if(event.key==='Enter')addProduction()">
+        <button class="btn primary" onclick="addProduction()">Add</button>
+      </div>
+      <div class="reel-grid" id="reel-grid"></div>
+    </div>
+  </section>
+
+  <!-- CORE (reached via the "SIX" reel) -->
+  <section class="page" id="page-core">
+    <div class="wrap">
+      <div class="page-head">
+        <button class="btn" style="margin-bottom:18px;" onclick="go('productions')">← Back to productions</button>
+        <div class="section-label">Now shooting</div>
+        <h1 class="page-title">SIX</h1>
+        <p class="page-sub">Everything behind this production, in one place.</p>
+      </div>
+
+      <div class="subtabs">
+        <button class="subtab-btn active" data-sixtab="crew" onclick="showSixTab('crew')">Core Team</button>
+        <button class="subtab-btn" data-sixtab="cast" onclick="showSixTab('cast')">Cast</button>
+        <button class="subtab-btn" data-sixtab="status" onclick="showSixTab('status')">Status</button>
+        <button class="subtab-btn" data-sixtab="trailer" onclick="showSixTab('trailer')">Trailer</button>
+      </div>
+
+      <!-- CREW -->
+      <div class="subpage active" id="six-crew">
+        <div class="prod-toolbar">
+          <div class="hint">Photos and bios can only be added or changed by Core Members.</div>
+          <button class="core-pill" id="core-toggle-5" onclick="toggleCore()">🔒 Core access</button>
+        </div>
+        <div class="founders-grid" id="crew-grid"></div>
+      </div>
+
+      <!-- CAST -->
+      <div class="subpage" id="six-cast">
+        <div class="cast-grid" id="six-cast-grid"></div>
+      </div>
+
+      <!-- STATUS -->
+      <div class="subpage" id="six-status">
+        <div class="status-panel">
+          <div class="status-display" id="status-display">Loading status…</div>
+          <div class="core-inline" style="margin-top:22px;">
+            <button class="core-pill" id="core-toggle-2" onclick="toggleCore()">🔒 Core access</button>
+          </div>
+          <div class="status-edit" id="status-edit" style="display:none;">
+            <input type="text" id="status-input" placeholder="e.g. In Production, Post-Production, Released…">
+            <button class="btn primary" onclick="saveStatus()">Save status</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRAILER -->
+      <div class="subpage" id="six-trailer">
+        <div class="trailer-panel">
+          <div class="trailer-display" id="trailer-display">
+            <div class="trailer-empty">Loading trailer…</div>
+          </div>
+          <div class="core-inline" style="margin-top:22px;">
+            <button class="core-pill" id="core-toggle-3" onclick="toggleCore()">🔒 Core access</button>
+          </div>
+          <div class="trailer-edit" id="trailer-edit" style="display:none;">
+            <input type="text" id="trailer-input" placeholder="Paste a YouTube / video link…">
+            <button class="btn primary" onclick="saveTrailer()">Save trailer</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CHAT GATE -->
+  <section class="page" id="page-chat-gate">
+    <div class="gatewrap">
+      <div class="gate-card">
+        <div class="gate-slate">Restricted access</div>
+        <h2>Chat Room</h2>
+        <p>This is the live chat for the crew. Enter the access code to get in.</p>
+        <input type="password" id="chat-pass" placeholder="Access code" onkeydown="if(event.key==='Enter')checkChatPassword()">
+        <div class="gate-error" id="chat-pass-error"></div>
+        <button class="btn primary" style="width:100%;" onclick="checkChatPassword()">Enter</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHAT -->
+  <section class="page" id="page-chat">
+    <div class="wrap chatpage">
+      <div class="page-head" style="padding-top:40px;">
+        <div class="section-label">Live</div>
+        <h1 class="page-title">Crew Chat</h1>
+      </div>
+
+      <div class="name-card" id="name-card">
+        <h3>What do we call you?</h3>
+        <p>Pick a name for this session — it'll show next to your messages.</p>
+        <input type="text" id="chat-name-input" placeholder="Your name" onkeydown="if(event.key==='Enter')setChatName()">
+        <button class="btn primary" style="width:100%;" onclick="setChatName()">Join chat</button>
+      </div>
+
+      <div class="chat-shell" id="chat-shell" style="display:none;">
+        <div class="chat-topbar">
+          <span>Chatting as <b id="chat-name-display"></b></span>
+          <span id="chat-status">● live</span>
+        </div>
+        <div class="pinned-strip" id="pinned-strip" style="display:none;"></div>
+        <div class="chat-log" id="chat-log">
+          <div class="chat-empty">Loading messages…</div>
+        </div>
+        <div class="chat-inputbar">
+          <input type="text" id="chat-input" placeholder="Say something…" onkeydown="if(event.key==='Enter')sendMessage()">
+          <button class="btn primary" onclick="sendMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>Built by Neil Roy</footer>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
