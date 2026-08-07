@@ -391,7 +391,7 @@ io.on('connection', (socket) => {
   socket.on('core:set-person-bio', ({ group, id, bio }) => {
     if (!socket.data.coreAuthed) return;
     if (!GROUP_NAMES.includes(group) || !PEOPLE_GROUPS[group].includes(id)) return;
-    const clean = String(bio || '').slice(0, 600);
+    const clean = String(bio || '').slice(0, 2000);
     db[group][id].bio = clean;
     saveDb();
     io.emit(`${group}:update`, db[group]);

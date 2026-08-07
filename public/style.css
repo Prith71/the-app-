@@ -190,6 +190,10 @@ main{ flex:1; }
   0%{ opacity:0; transform:scale(0.8) translateY(10px); }
   100%{ opacity:1; transform:scale(1) translateY(0); }
 }
+.six-logo{
+  width:72px; height:auto; margin-bottom:14px;
+  filter:drop-shadow(0 0 22px rgba(47,107,255,0.35));
+}
 
 .socials{
   margin-top:28px;
@@ -327,7 +331,7 @@ main{ flex:1; }
 
 /* ---------- FOUNDERS ---------- */
 .founders-grid{
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr));
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr));
   gap:20px; padding-bottom:60px;
 }
 .founder-card{
@@ -351,7 +355,9 @@ main{ flex:1; }
   color:var(--hot); margin-top:4px;
 }
 .founder-bio{
-  font-size:14px; line-height:1.55; color:var(--text-dim);
+  font-size:14px; line-height:1.6; color:var(--text-dim);
+  max-width:62ch;
+  white-space:pre-wrap;
 }
 .founder-bio.empty{ font-family:var(--mono); font-size:12px; }
 .founder-edit{
@@ -360,9 +366,10 @@ main{ flex:1; }
 }
 .founder-edit.show{ display:flex; }
 .founder-edit textarea{
-  width:100%; min-height:80px; resize:vertical;
+  width:100%; min-height:220px; max-height:420px; resize:vertical;
   background:var(--ink); border:1px solid var(--ink-line); color:var(--text);
-  padding:10px 12px; border-radius:8px; font-family:var(--body); font-size:13px;
+  padding:12px 14px; border-radius:8px; font-family:var(--body); font-size:13px;
+  line-height:1.55;
 }
 .founder-edit textarea:focus{ outline:none; border-color:var(--lime); }
 .founder-edit-row{ display:flex; gap:8px; flex-wrap:wrap; }

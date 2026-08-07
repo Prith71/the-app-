@@ -28,13 +28,13 @@ const CREW_META = [
   { id: "abhishek", name: "Abhishek Chatterjee", role: "Editor, Cinematographer" },
   { id: "pranjal", name: "Pranjal Chaudhuri", role: "Scriptwriter" },
   { id: "sabarna", name: "Sabarna Chakraborty", role: "Sound" },
-  { id: "naina", name: "Naina Mukherjee", role: "Social Media, Marketing" },
+  { id: "naina", name: "Nayna Mukherjee", role: "Social Media, Marketing" },
   { id: "asmit", name: "Asmit Ghoshal", role: "Consultant" }
 ];
 
 const SIX_CAST = [
-  "Abhishek Chatterjee","Naina Mukherjee","Pranjal Chaudhuri","Alisha Khan","Aadit Ghosh",
-  "Debotra Roy","Neil Basu","Arkaprava Gupta","Abhishek Raffelle Gomes","Debsourya Chowdhury",
+  "Abhishek Chatterjee","Nayna Mukherjee","Pranjal Chaudhuri","Alisha Khan","Aadit Ghosh",
+  "Debotra Basu","Neil Roy","Arkaprava Gupta","Abhishek Raffelle Gomes","Debsourya Chowdhury",
   "Abhinit Mukherjee","Yudhajit Bhattacharya","Aaditya Sen","Diptayan Roy","Kunal Aswani",
   "Hrishit Sur","Rivu Sreemany","Shivang Sarkar","Mayukh Roy","Syamantak Mitra",
   "Anurag Nandy","Siddhartha Kundu","Soumyadip Nag","Aditya Mukherjee","Nirvani Charkraborty",
@@ -43,7 +43,7 @@ const SIX_CAST = [
 
 const FOUNDERS_META = [
   { id: "urvish", name: "Urvish Mukherjee", role: "Founder" },
-  { id: "ayush", name: "Ayush Sarkar", role: "Board of Directors" },
+  { id: "ayush", name: "Aayush Sarkar", role: "Board of Directors" },
   { id: "pranjal", name: "Pranjal Chaudhuri", role: "Board of Directors" },
   { id: "nayna", name: "Nayna Mukherjee", role: "Board of Directors" }
 ];
