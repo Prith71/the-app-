@@ -178,7 +178,7 @@ function renderProductions(list){
   grid.innerHTML = list.map((title, i) => {
     const clickable = title.trim().toLowerCase() === 'six';
     const titleHtml = clickable
-      ? `<img class="reel-six-logo" src="assets/six-logo.png" alt="${escapeHtml(title)} logo">`
+      ? `<div class="reel-six-logo-wrap"><img class="reel-six-logo" src="assets/six-logo.png" alt="${escapeHtml(title)} logo"></div>`
       : `<div class="reel-title">${escapeHtml(title)}</div>`;
     return `
     <div class="reel-card${clickable ? ' clickable six' : ''}" ${clickable ? `onclick="go('core')"` : ''}>

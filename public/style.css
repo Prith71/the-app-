@@ -190,11 +190,6 @@ main{ flex:1; }
   0%{ opacity:0; transform:scale(0.8) translateY(10px); }
   100%{ opacity:1; transform:scale(1) translateY(0); }
 }
-.six-logo{
-  width:72px; height:auto; margin-bottom:14px;
-  filter:drop-shadow(0 0 22px rgba(47,107,255,0.35));
-}
-
 .socials{
   margin-top:28px;
   display:flex; gap:22px; flex-wrap:wrap; justify-content:center;
@@ -505,8 +500,13 @@ main{ flex:1; }
 .reel-card.six > div:first-child{
   display:flex; flex-direction:column; align-items:center; text-align:center;
 }
+.reel-six-logo-wrap{
+  width:120px; height:120px; margin:6px auto 0;
+  background:var(--ink); border-radius:16px;
+  display:flex; align-items:center; justify-content:center;
+}
 .reel-six-logo{
-  width:96px; height:auto; margin:6px auto 0; display:block;
+  width:76px; height:auto; display:block;
 }
 .reel-card.six .reel-index{ text-align:center; }
 .reel-hint{
