@@ -175,6 +175,8 @@ function renderProductions(list){
   const grid = document.getElementById('reel-grid');
   document.getElementById('prod-count').textContent =
     list.length + (list.length === 1 ? ' production currently rolling' : ' productions currently rolling');
+  const statEl = document.getElementById('stat-productions');
+  if(statEl) statEl.textContent = list.length;
   grid.innerHTML = list.map((title, i) => {
     const clickable = title.trim().toLowerCase() === 'six';
     const titleHtml = clickable
@@ -571,7 +573,7 @@ socket.on('disconnect', () => {
 
 /* ---------------- CLICK ANIMATION ---------------- */
 document.addEventListener('click', function(e){
-  const el = e.target.closest('.btn, .navlinks button, .core-pill, .reel-remove, .reel-card.clickable, .subtab-btn');
+  const el = e.target.closest('.btn, .navlinks button, .core-pill, .reel-remove, .reel-card.clickable, .subtab-btn, .explore-card, .footer-links button');
   if(!el) return;
   const rect = el.getBoundingClientRect();
   const size = Math.max(rect.width, rect.height) * 1.2;
