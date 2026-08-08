@@ -118,6 +118,8 @@
         <button class="subtab-btn" data-sixtab="cast" onclick="showSixTab('cast')">Cast</button>
         <button class="subtab-btn" data-sixtab="status" onclick="showSixTab('status')">Status</button>
         <button class="subtab-btn" data-sixtab="trailer" onclick="showSixTab('trailer')">Trailer</button>
+        <button class="subtab-btn" data-sixtab="bts" onclick="showSixTab('bts')">BTS</button>
+        <button class="subtab-btn" data-sixtab="doubts" onclick="showSixTab('doubts')">Doubts</button>
       </div>
 
       <!-- CREW -->
@@ -161,6 +163,45 @@
             <input type="text" id="trailer-input" placeholder="Paste a YouTube / video link…">
             <button class="btn primary" onclick="saveTrailer()">Save trailer</button>
           </div>
+        </div>
+      </div>
+
+      <!-- BTS (Behind the Scenes) -->
+      <div class="subpage" id="six-bts">
+        <div class="section-label" style="margin-bottom:14px;">BTS footage</div>
+        <div class="trailer-panel" style="margin-bottom:44px;">
+          <div class="trailer-display" id="bts-link-display">
+            <div class="trailer-empty">Loading BTS footage…</div>
+          </div>
+          <div class="core-inline" style="margin-top:22px;">
+            <button class="core-pill" id="core-toggle-6" onclick="toggleCore()">🔒 Core access</button>
+          </div>
+          <div class="trailer-edit" id="bts-link-edit" style="display:none;">
+            <input type="text" id="bts-link-input" placeholder="Paste a YouTube / video link for BTS footage…">
+            <button class="btn primary" onclick="saveBtsLink()">Save BTS link</button>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-bottom:14px;">BTS photos</div>
+        <p class="hint">20 slots — Core can upload a photo and a short caption for each. Empty slots are hidden from visitors.</p>
+        <div class="bts-grid" id="bts-grid"></div>
+      </div>
+
+      <!-- DOUBTS -->
+      <div class="subpage" id="six-doubts">
+        <div class="doubt-ask-panel">
+          <div class="section-label" style="margin-bottom:10px;">Ask Core anything</div>
+          <p class="hint" style="margin-bottom:18px;">Fully anonymous — no name attached, only Core can read these.</p>
+          <textarea id="doubt-input" placeholder="Ask a question or raise a doubt…" maxlength="500"></textarea>
+          <button class="btn primary" style="margin-top:12px;" onclick="submitDoubt()">Send anonymously</button>
+          <div class="doubt-sent-msg" id="doubt-sent-msg"></div>
+        </div>
+
+        <div class="doubt-core-panel">
+          <div class="core-inline" style="margin:36px 0 18px;">
+            <button class="core-pill" id="core-toggle-7" onclick="toggleCore()">🔒 Core access — view questions</button>
+          </div>
+          <div class="doubts-list" id="doubts-list"></div>
         </div>
       </div>
 

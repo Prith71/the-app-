@@ -329,6 +329,68 @@ main{ flex:1; }
 .trailer-link-card a{ color:var(--lime); }
 .trailer-empty{ color:var(--text-dim); font-family:var(--mono); font-size:13px; }
 
+/* ---------- BTS (Behind the Scenes) ---------- */
+.bts-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(190px,1fr));
+  gap:16px; padding-bottom:70px;
+}
+.bts-slot{
+  background:var(--ink-panel); border:1px solid var(--ink-line); border-radius:10px;
+  overflow:hidden; display:flex; flex-direction:column;
+}
+.bts-slot-photo{
+  width:100%; aspect-ratio:4/3; background:var(--ink);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+.bts-slot-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
+.bts-slot-photo .placeholder{
+  font-family:var(--mono); font-size:10px; color:var(--text-dim); text-align:center; padding:10px;
+}
+.bts-slot-num{
+  font-family:var(--mono); font-size:10px; color:var(--hot-dim); letter-spacing:0.08em;
+  text-transform:uppercase; padding:8px 10px 0;
+}
+.bts-caption{
+  padding:6px 10px 10px; font-size:12px; color:var(--text-dim); line-height:1.4; min-height:18px;
+}
+.bts-caption.empty{ font-family:var(--mono); font-size:10px; }
+.bts-slot-edit{ padding:0 10px 12px; display:flex; flex-direction:column; gap:6px; }
+.bts-slot-edit input[type="text"]{
+  width:100%; background:var(--ink); border:1px solid var(--ink-line); color:var(--text);
+  padding:7px 9px; border-radius:6px; font-family:var(--body); font-size:11px;
+}
+.bts-slot-edit input[type="text"]:focus{ outline:none; border-color:var(--lime); }
+.bts-slot-edit input[type="file"]{
+  font-family:var(--mono); font-size:10px; color:var(--text-dim); width:100%;
+}
+.bts-slot-btn-row{ display:flex; gap:6px; }
+.bts-slot-btn-row .btn, .bts-slot-btn-row .reel-remove{ font-size:10px; padding:6px 10px; flex:1; text-align:center; }
+.bts-slot-status{ font-family:var(--mono); font-size:9px; color:var(--text-dim); min-height:12px; }
+
+/* ---------- DOUBTS ---------- */
+.doubt-ask-panel{
+  max-width:560px; background:var(--ink-panel); border:1px solid var(--ink-line);
+  border-radius:14px; padding:26px 28px; margin-bottom:10px;
+}
+.doubt-ask-panel textarea{
+  width:100%; min-height:90px; resize:vertical;
+  background:var(--ink); border:1px solid var(--ink-line); color:var(--text);
+  padding:12px 14px; border-radius:8px; font-family:var(--body); font-size:14px;
+}
+.doubt-ask-panel textarea:focus{ outline:none; border-color:var(--lime); }
+.doubt-sent-msg{
+  font-family:var(--mono); font-size:12px; color:var(--lime); min-height:16px; margin-top:10px;
+}
+.doubt-core-panel{ max-width:640px; padding-bottom:60px; }
+.doubts-list{ display:flex; flex-direction:column; gap:10px; }
+.doubt-item{
+  background:var(--ink-panel); border:1px solid var(--ink-line); border-radius:10px;
+  padding:14px 16px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+}
+.doubt-item-text{ font-size:14px; line-height:1.5; }
+.doubt-item-meta{ font-family:var(--mono); font-size:10px; color:var(--text-dim); margin-top:6px; }
+.doubt-empty{ font-family:var(--mono); font-size:12px; color:var(--text-dim); }
+
 /* ---------- FOUNDERS ---------- */
 .founders-grid{
   display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr));
@@ -439,10 +501,19 @@ main{ flex:1; }
 .reel-remove:hover{ background:var(--hot); color:#fff; border-color:var(--hot); }
 .reel-card.clickable{ cursor:pointer; transition:transform .15s ease, border .15s ease; border:1px solid transparent; }
 .reel-card.clickable:hover{ transform:translateY(-3px); border-color:var(--hot); }
+.reel-card.six{ min-height:190px; }
+.reel-card.six > div:first-child{
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+}
+.reel-six-logo{
+  width:96px; height:auto; margin:6px auto 0; display:block;
+}
+.reel-card.six .reel-index{ text-align:center; }
 .reel-hint{
   align-self:flex-end; margin-top:14px;
   font-family:var(--mono); font-size:11px; color:var(--hot-dim);
 }
+.reel-card.six .reel-hint{ align-self:center; }
 
 .add-row{
   display:flex; gap:10px; margin-bottom:26px; flex-wrap:wrap;

@@ -77,6 +77,14 @@ function defaultGroupData(ids) {
   return o;
 }
 
+const BTS_SLOT_COUNT = 20;
+function emptyBtsSlot() {
+  return { photo: '', photoPublicId: '', caption: '' };
+}
+function defaultBtsPhotos() {
+  return Array.from({ length: BTS_SLOT_COUNT }, emptyBtsSlot);
+}
+
 const DEFAULT_DB = {
   productions: ['SIX'],
   status: 'In Production',
@@ -84,7 +92,10 @@ const DEFAULT_DB = {
   messages: [],
   messageSeq: 0,
   founders: defaultGroupData(PEOPLE_GROUPS.founders),
-  crew: defaultGroupData(PEOPLE_GROUPS.crew)
+  crew: defaultGroupData(PEOPLE_GROUPS.crew),
+  bts: { link: '', photos: defaultBtsPhotos() },
+  doubts: [],
+  doubtSeq: 0
 };
 
 // Everything lives in one document in one collection — simplest possible
@@ -118,6 +129,26 @@ function mergeWithDefaults(parsed) {
       merged[group][id] = { ...emptyPerson(), ...(existing || {}) };
     });
   });
+
+  // BTS: always exactly BTS_SLOT_COUNT slots, each with the full shape.
+  const existingBts = (parsed && parsed.bts) || {};
+  const existingPhotos = Array.isArray(existingBts.photos) ? existingBts.photos : [];
+  merged.bts = {
+    link: typeof existingBts.link === 'string' ? existingBts.link : '',
+    photos: Array.from({ length: BTS_SLOT_COUNT }, (_, i) => ({
+      ...emptyBtsSlot(),
+      ...(existingPhotos[i] || {})
+    }))
+  };
+
+  // Doubts: backfill ids, keep doubtSeq ahead of the highest id in use.
+  let maxDoubtId = 0;
+  merged.doubts = (merged.doubts || []).map((d, i) => {
+    const id = typeof d.id === 'number' ? d.id : i + 1;
+    maxDoubtId = Math.max(maxDoubtId, id);
+    return { ...d, id };
+  });
+  merged.doubtSeq = Math.max(merged.doubtSeq || 0, maxDoubtId);
 
   return merged;
 }
@@ -256,6 +287,54 @@ app.post('/api/people/:group/:id/photo', (req, res, next) => {
   });
 });
 
+// Core-only: upload/replace a BTS gallery photo in a given slot (1-20).
+// Sent as multipart/form-data with fields: code, photo
+app.post('/api/bts/:slot/photo', (req, res, next) => {
+  const slotNum = parseInt(req.params.slot, 10);
+  if (!Number.isInteger(slotNum) || slotNum < 1 || slotNum > BTS_SLOT_COUNT) {
+    return res.status(404).json({ error: 'Unknown BTS slot.' });
+  }
+  next();
+}, (req, res) => {
+  const slotIndex = parseInt(req.params.slot, 10) - 1;
+  upload.single('photo')(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (req.body.code !== CORE_PASSWORD) {
+      return res.status(401).json({ error: 'Wrong core access code.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No photo received.' });
+    }
+
+    try {
+      const oldPublicId = db.bts.photos[slotIndex].photoPublicId;
+      const publicId = `bts-${slotIndex + 1}-${Date.now()}`;
+      const result = await uploadBufferToCloudinary(
+        req.file.buffer,
+        'angy-productions/bts',
+        publicId
+      );
+
+      db.bts.photos[slotIndex].photo = result.secure_url;
+      db.bts.photos[slotIndex].photoPublicId = result.public_id;
+      saveDb();
+      io.emit('bts:update', db.bts);
+      res.json({ success: true, data: db.bts });
+
+      if (oldPublicId) {
+        cloudinary.uploader.destroy(oldPublicId).catch(() => {});
+      }
+    } catch (uploadErr) {
+      console.error('Cloudinary upload failed:', uploadErr.message);
+      res.status(500).json({
+        error: 'Upload failed on the server. Check your Cloudinary credentials in .env.'
+      });
+    }
+  });
+});
+
 const server = http.createServer(app);
 const io = new Server(server);
 
@@ -268,7 +347,8 @@ io.on('connection', (socket) => {
     status: db.status,
     trailer: db.trailer,
     founders: db.founders,
-    crew: db.crew
+    crew: db.crew,
+    bts: db.bts
   });
 
   // ---------------- CHAT AUTH ----------------
@@ -344,7 +424,9 @@ io.on('connection', (socket) => {
     if (code === CORE_PASSWORD) {
       registerSuccess(socket, 'core');
       socket.data.coreAuthed = true;
+      socket.join('core'); // so doubts:update broadcasts reach only Core sockets
       socket.emit('core:auth:result', { success: true });
+      socket.emit('doubts:update', db.doubts); // private to this socket — not everyone
     } else {
       registerFailure(socket, 'core');
       const remaining = Math.max(0, MAX_ATTEMPTS - (socket.data.coreFails || 0));
@@ -395,6 +477,65 @@ io.on('connection', (socket) => {
     db[group][id].bio = clean;
     saveDb();
     io.emit(`${group}:update`, db[group]);
+  });
+
+  // ---------------- BTS (Behind the Scenes) ----------------
+  socket.on('core:set-bts-link', (value) => {
+    if (!socket.data.coreAuthed) return;
+    const clean = String(value || '').slice(0, 500).trim();
+    db.bts.link = clean;
+    saveDb();
+    io.emit('bts:update', db.bts);
+  });
+
+  socket.on('core:set-bts-caption', ({ slot, caption }) => {
+    if (!socket.data.coreAuthed) return;
+    const i = Number(slot) - 1;
+    if (!Number.isInteger(i) || i < 0 || i >= BTS_SLOT_COUNT) return;
+    // Roughly 20 words — a generous character cap rather than a strict
+    // word-splitter, since counting words server-side is easy to game
+    // anyway and this is just meant to keep captions short.
+    const clean = String(caption || '').slice(0, 160);
+    db.bts.photos[i].caption = clean;
+    saveDb();
+    io.emit('bts:update', db.bts);
+  });
+
+  socket.on('core:delete-bts-photo', (slot) => {
+    if (!socket.data.coreAuthed) return;
+    const i = Number(slot) - 1;
+    if (!Number.isInteger(i) || i < 0 || i >= BTS_SLOT_COUNT) return;
+    const oldPublicId = db.bts.photos[i].photoPublicId;
+    db.bts.photos[i] = emptyBtsSlot();
+    saveDb();
+    io.emit('bts:update', db.bts);
+    if (oldPublicId) {
+      cloudinary.uploader.destroy(oldPublicId).catch(() => {});
+    }
+  });
+
+  // ---------------- DOUBTS (anonymous questions to Core) ----------------
+  // Submitting requires no auth at all — that's the point, it's anonymous
+  // and open to any visitor. Viewing the list and deleting are Core-only,
+  // and the list is only ever sent to sockets in the 'core' room (joined
+  // on successful core:auth above) so regular visitors never receive it.
+  socket.on('doubt:submit', (text) => {
+    const clean = String(text || '').slice(0, 500).trim();
+    if (!clean) return;
+    db.doubtSeq += 1;
+    const doubt = { id: db.doubtSeq, text: clean, ts: Date.now() };
+    db.doubts.push(doubt);
+    saveDb();
+    io.to('core').emit('doubts:update', db.doubts);
+  });
+
+  socket.on('doubt:delete', (id) => {
+    if (!socket.data.coreAuthed) return;
+    const idx = db.doubts.findIndex((d) => d.id === id);
+    if (idx === -1) return;
+    db.doubts.splice(idx, 1);
+    saveDb();
+    io.to('core').emit('doubts:update', db.doubts);
   });
 });
 

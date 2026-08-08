@@ -59,6 +59,8 @@ let chatUnlocked = false;
 let coreUnlocked = false;
 let chatName = "";
 let productionsCache = ["SIX"];
+let btsCache = { link: '', photos: [] };
+let doubtsCache = [];
 
 /* ---------------- ROUTING ---------------- */
 function go(view){
@@ -175,11 +177,14 @@ function renderProductions(list){
     list.length + (list.length === 1 ? ' production currently rolling' : ' productions currently rolling');
   grid.innerHTML = list.map((title, i) => {
     const clickable = title.trim().toLowerCase() === 'six';
+    const titleHtml = clickable
+      ? `<img class="reel-six-logo" src="assets/six-logo.png" alt="${escapeHtml(title)} logo">`
+      : `<div class="reel-title">${escapeHtml(title)}</div>`;
     return `
-    <div class="reel-card${clickable ? ' clickable' : ''}" ${clickable ? `onclick="go('core')"` : ''}>
+    <div class="reel-card${clickable ? ' clickable six' : ''}" ${clickable ? `onclick="go('core')"` : ''}>
       <div>
         <div class="reel-index">Reel ${String(i+1).padStart(2,'0')}</div>
-        <div class="reel-title">${escapeHtml(title)}</div>
+        ${titleHtml}
       </div>
       ${coreUnlocked ? `<button class="reel-remove" onclick="event.stopPropagation(); removeProduction(${i})">Remove</button>` : (clickable ? `<div class="reel-hint">Tap to meet the core →</div>` : '')}
     </div>
@@ -205,6 +210,8 @@ function toggleCore(){
     renderProductions(productionsCache);
     renderAllPeople();
     renderMessages(chatCache);
+    renderBts();
+    renderDoubts();
     return;
   }
   const code = prompt("Enter core access code:");
@@ -222,13 +229,15 @@ socket.on('core:auth:result', (res) => {
     renderProductions(productionsCache);
     renderAllPeople();
     renderMessages(chatCache);
+    renderBts();
+    renderDoubts();
   }else{
     const left = res.remaining !== undefined ? ` (${res.remaining} attempt${res.remaining===1?'':'s'} left before a lockout)` : '';
     alert("Wrong code. This part of the slate stays locked." + left);
   }
 });
 function setCoreUI(){
-  ['core-toggle','core-toggle-2','core-toggle-3','core-toggle-4','core-toggle-5'].forEach(id => {
+  ['core-toggle','core-toggle-2','core-toggle-3','core-toggle-4','core-toggle-5','core-toggle-6','core-toggle-7'].forEach(id => {
     const pill = document.getElementById(id);
     if(!pill) return;
     pill.textContent = coreUnlocked ? '✅ Core mode' : '🔒 Core access';
@@ -237,6 +246,7 @@ function setCoreUI(){
   document.getElementById('add-row').style.display = coreUnlocked ? 'flex' : 'none';
   document.getElementById('status-edit').style.display = coreUnlocked ? 'flex' : 'none';
   document.getElementById('trailer-edit').style.display = coreUnlocked ? 'flex' : 'none';
+  document.getElementById('bts-link-edit').style.display = coreUnlocked ? 'flex' : 'none';
 }
 
 /* ---------------- STATUS ---------------- */
@@ -291,6 +301,132 @@ socket.on('trailer:update', (value) => {
   renderTrailer(value);
   document.getElementById('trailer-input').value = value;
 });
+
+/* ---------------- BTS (Behind the Scenes) ---------------- */
+function renderBts(){
+  const linkEl = document.getElementById('bts-link-display');
+  if(!btsCache.link){
+    linkEl.innerHTML = '<div class="trailer-empty">No BTS footage linked yet.</div>';
+  }else{
+    const embed = toEmbedUrl(btsCache.link);
+    if(embed){
+      linkEl.innerHTML = `<div class="trailer-embed"><iframe src="${embed}" title="BTS footage" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+    }else{
+      linkEl.innerHTML = `<div class="trailer-link-card">BTS link: <a href="${escapeHtml(btsCache.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(btsCache.link)}</a></div>`;
+    }
+  }
+  document.getElementById('bts-link-input').value = btsCache.link || '';
+
+  const grid = document.getElementById('bts-grid');
+  const photos = btsCache.photos || [];
+  const slotsHtml = [];
+  for(let i = 0; i < 20; i++){
+    const slotNum = i + 1;
+    const data = photos[i] || { photo: '', caption: '' };
+    const hasPhoto = !!data.photo;
+    if(!hasPhoto && !coreUnlocked) continue; // hide empty slots from regular visitors
+    const photoHtml = hasPhoto
+      ? `<img src="${escapeHtml(data.photo)}" alt="BTS photo ${slotNum}">`
+      : `<div class="placeholder">Empty slot</div>`;
+    slotsHtml.push(`
+      <div class="bts-slot">
+        <div class="bts-slot-photo">${photoHtml}</div>
+        <div class="bts-slot-num">Slot ${String(slotNum).padStart(2,'0')}</div>
+        <div class="bts-caption${data.caption ? '' : ' empty'}">${data.caption ? escapeHtml(data.caption) : (coreUnlocked ? 'No caption yet.' : '')}</div>
+        ${coreUnlocked ? `
+          <div class="bts-slot-edit">
+            <input type="text" id="bts-caption-input-${slotNum}" placeholder="Short caption (~20 words)" value="${escapeHtml(data.caption || '')}">
+            <input type="file" id="bts-photo-input-${slotNum}" accept="image/*">
+            <div class="bts-slot-btn-row">
+              <button class="btn primary" onclick="saveBtsCaption(${slotNum})">Save caption</button>
+              <button class="btn" onclick="uploadBtsPhoto(${slotNum})">Upload</button>
+              ${hasPhoto ? `<button class="reel-remove" onclick="deleteBtsPhoto(${slotNum})">Delete</button>` : ''}
+            </div>
+            <div class="bts-slot-status" id="bts-status-${slotNum}"></div>
+          </div>
+        ` : ''}
+      </div>
+    `);
+  }
+  grid.innerHTML = slotsHtml.length
+    ? slotsHtml.join('')
+    : '<div class="doubt-empty">No BTS photos yet.</div>';
+}
+function saveBtsLink(){
+  const val = document.getElementById('bts-link-input').value.trim();
+  socket.emit('core:set-bts-link', val);
+}
+function saveBtsCaption(slot){
+  const val = document.getElementById('bts-caption-input-' + slot).value.trim();
+  socket.emit('core:set-bts-caption', { slot, caption: val });
+}
+async function uploadBtsPhoto(slot){
+  const fileInput = document.getElementById('bts-photo-input-' + slot);
+  const statusEl = document.getElementById('bts-status-' + slot);
+  const file = fileInput.files[0];
+  if(!file){ statusEl.textContent = 'Pick an image file first.'; return; }
+  const code = prompt("Confirm core access code to upload:");
+  if(code === null) return;
+  statusEl.textContent = 'Uploading…';
+  try{
+    const form = new FormData();
+    form.append('photo', file);
+    form.append('code', code);
+    const res = await fetch(`/api/bts/${slot}/photo`, { method: 'POST', body: form });
+    const data = await res.json();
+    if(!res.ok){
+      statusEl.textContent = data.error || 'Upload failed.';
+      return;
+    }
+    statusEl.textContent = 'Uploaded ✓';
+    fileInput.value = '';
+  }catch(e){
+    statusEl.textContent = 'Upload failed — check your connection.';
+  }
+}
+function deleteBtsPhoto(slot){
+  if(!confirm('Delete this BTS photo and caption?')) return;
+  socket.emit('core:delete-bts-photo', slot);
+}
+socket.on('bts:update', (data) => { btsCache = data; renderBts(); });
+
+/* ---------------- DOUBTS (anonymous questions to Core) ---------------- */
+function submitDoubt(){
+  const input = document.getElementById('doubt-input');
+  const val = input.value.trim();
+  const msgEl = document.getElementById('doubt-sent-msg');
+  if(!val){ return; }
+  socket.emit('doubt:submit', val);
+  input.value = '';
+  msgEl.textContent = 'Sent anonymously to Core. Thanks!';
+  setTimeout(() => { if(msgEl.textContent === 'Sent anonymously to Core. Thanks!') msgEl.textContent = ''; }, 4000);
+}
+function renderDoubts(){
+  const list = document.getElementById('doubts-list');
+  if(!coreUnlocked){
+    list.innerHTML = '';
+    return;
+  }
+  if(doubtsCache.length === 0){
+    list.innerHTML = '<div class="doubt-empty">No questions yet.</div>';
+    return;
+  }
+  const sorted = [...doubtsCache].sort((a,b) => b.ts - a.ts);
+  list.innerHTML = sorted.map(d => `
+    <div class="doubt-item">
+      <div>
+        <div class="doubt-item-text">${escapeHtml(d.text)}</div>
+        <div class="doubt-item-meta">${formatTime(d.ts)}</div>
+      </div>
+      <button class="reel-remove" onclick="deleteDoubt(${d.id})">Delete</button>
+    </div>
+  `).join('');
+}
+function deleteDoubt(id){
+  if(!confirm('Delete this question?')) return;
+  socket.emit('doubt:delete', id);
+}
+socket.on('doubts:update', (list) => { doubtsCache = list; renderDoubts(); });
 
 /* ---------------- CHAT GATE ---------------- */
 function checkChatPassword(){
@@ -420,6 +556,8 @@ socket.on('init', (data) => {
   peopleCache.founders = data.founders || {};
   peopleCache.crew = data.crew || {};
   renderAllPeople();
+  btsCache = data.bts || { link: '', photos: [] };
+  renderBts();
 });
 socket.on('productions:update', (list) => renderProductions(list));
 socket.on('connect', () => {
