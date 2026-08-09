@@ -41,7 +41,7 @@ body{
 }
 
 /* ---------- CLICK ANIMATION (press + ripple) ---------- */
-.btn, .navlinks button, .core-pill, .reel-remove, .reel-card.clickable, .subtab-btn, .explore-card, .footer-links button{
+.btn, .navlinks button, .core-pill, .reel-remove, .reel-card.clickable, .subtab-btn, .explore-card, .footer-links button, .doubt-chip{
   position:relative;
   overflow:hidden;
   transform:translateZ(0);
@@ -204,29 +204,7 @@ main{ flex:1; }
 .social-link svg{ width:20px; height:20px; flex:none; }
 .social-link:hover{ color:var(--lime); transform:translateY(-2px); }
 
-/* ---------- HOME: stats + explore ---------- */
-.stats-strip{
-  display:flex; flex-wrap:wrap; justify-content:center;
-  gap:0;
-  border-top:1px solid var(--ink-line);
-  border-bottom:1px solid var(--ink-line);
-  padding:34px 0;
-  margin:10px 0 56px;
-}
-.stat-block{
-  flex:1; min-width:110px;
-  text-align:center;
-  padding:0 16px;
-  border-left:1px solid var(--ink-line);
-}
-.stat-block:first-child{ border-left:none; }
-.stat-num{
-  font-family:var(--display); font-size:clamp(30px,5vw,44px); color:var(--lime); letter-spacing:0.4px;
-}
-.stat-label{
-  font-family:var(--mono); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim);
-  margin-top:4px;
-}
+/* ---------- HOME: explore ---------- */
 .explore-grid{
   display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr));
   gap:18px; padding-bottom:70px;
@@ -240,11 +218,6 @@ main{ flex:1; }
 .explore-card svg{ width:30px; height:30px; color:var(--hot); margin-bottom:16px; }
 .explore-title{ font-family:var(--display); font-size:22px; letter-spacing:0.3px; margin-bottom:8px; }
 .explore-blurb{ font-size:13px; line-height:1.55; color:var(--text-dim); }
-
-@media (max-width:640px){
-  .stat-block{ min-width:90px; border-left:none; border-top:1px solid var(--ink-line); padding-top:14px; margin-top:14px; }
-  .stat-block:first-child{ border-top:none; padding-top:0; margin-top:0; }
-}
 
 .section-label{
   font-family:var(--mono);
@@ -415,6 +388,16 @@ main{ flex:1; }
   padding:12px 14px; border-radius:8px; font-family:var(--body); font-size:14px;
 }
 .doubt-ask-panel textarea:focus{ outline:none; border-color:var(--lime); }
+.doubt-suggestions{
+  display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;
+}
+.doubt-chip{
+  font-family:var(--body); font-size:12px; text-align:left;
+  background:var(--ink); border:1px solid var(--ink-line); color:var(--text-dim);
+  padding:8px 14px; border-radius:999px; cursor:pointer;
+  transition:border-color .15s ease, color .15s ease;
+}
+.doubt-chip:hover{ border-color:var(--lime); color:var(--text); }
 .doubt-sent-msg{
   font-family:var(--mono); font-size:12px; color:var(--lime); min-height:16px; margin-top:10px;
 }

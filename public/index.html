@@ -54,30 +54,7 @@
     </div>
 
     <div class="wrap">
-      <div class="stats-strip">
-        <div class="stat-block">
-          <div class="stat-num">12</div>
-          <div class="stat-label">Goals</div>
-        </div>
-        <div class="stat-block">
-          <div class="stat-num" id="stat-productions">1</div>
-          <div class="stat-label">Productions</div>
-        </div>
-        <div class="stat-block">
-          <div class="stat-num">4</div>
-          <div class="stat-label">Founders</div>
-        </div>
-        <div class="stat-block">
-          <div class="stat-num">7</div>
-          <div class="stat-label">Core Crew</div>
-        </div>
-        <div class="stat-block">
-          <div class="stat-num">28</div>
-          <div class="stat-label">Cast</div>
-        </div>
-      </div>
-
-      <div class="section-label">Explore</div>
+      <div class="section-label" style="margin-top:6px;">Explore</div>
       <div class="explore-grid">
         <div class="explore-card" onclick="go('goals')">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="M7.5 12l2.7 2.7L16.5 8.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -239,7 +216,8 @@
       <div class="subpage" id="six-doubts">
         <div class="doubt-ask-panel">
           <div class="section-label" style="margin-bottom:10px;">Ask Core anything</div>
-          <p class="hint" style="margin-bottom:18px;">Fully anonymous — no name attached, only Core can read these.</p>
+          <p class="hint" style="margin-bottom:14px;">Fully anonymous — no name attached, only Core can read these.</p>
+          <div class="doubt-suggestions" id="doubt-suggestions"></div>
           <textarea id="doubt-input" placeholder="Ask a question or raise a doubt…" maxlength="500"></textarea>
           <button class="btn primary" style="margin-top:12px;" onclick="submitDoubt()">Send anonymously</button>
           <div class="doubt-sent-msg" id="doubt-sent-msg"></div>

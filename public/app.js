@@ -393,6 +393,26 @@ function deleteBtsPhoto(slot){
 socket.on('bts:update', (data) => { btsCache = data; renderBts(); });
 
 /* ---------------- DOUBTS (anonymous questions to Core) ---------------- */
+const DOUBT_SUGGESTIONS = [
+  "When's the next shoot day?",
+  "How do I get involved in a production?",
+  "Can non-crew members visit a set?",
+  "How are cast members picked?",
+  "Is there a budget I should know about?",
+  "Can I suggest an idea for a future project?"
+];
+function renderDoubtSuggestions(){
+  const el = document.getElementById('doubt-suggestions');
+  if(!el) return;
+  el.innerHTML = DOUBT_SUGGESTIONS.map(q => `
+    <button type="button" class="doubt-chip" onclick="useDoubtSuggestion(this)">${escapeHtml(q)}</button>
+  `).join('');
+}
+function useDoubtSuggestion(btn){
+  const input = document.getElementById('doubt-input');
+  input.value = btn.textContent;
+  input.focus();
+}
 function submitDoubt(){
   const input = document.getElementById('doubt-input');
   const val = input.value.trim();
@@ -573,7 +593,7 @@ socket.on('disconnect', () => {
 
 /* ---------------- CLICK ANIMATION ---------------- */
 document.addEventListener('click', function(e){
-  const el = e.target.closest('.btn, .navlinks button, .core-pill, .reel-remove, .reel-card.clickable, .subtab-btn, .explore-card, .footer-links button');
+  const el = e.target.closest('.btn, .navlinks button, .core-pill, .reel-remove, .reel-card.clickable, .subtab-btn, .explore-card, .footer-links button, .doubt-chip');
   if(!el) return;
   const rect = el.getBoundingClientRect();
   const size = Math.max(rect.width, rect.height) * 1.2;
@@ -600,3 +620,4 @@ function formatTime(ts){
 /* ---------------- INIT ---------------- */
 renderGoals();
 renderSixCast();
+renderDoubtSuggestions();
