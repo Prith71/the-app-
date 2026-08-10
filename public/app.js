@@ -142,29 +142,29 @@ function savePersonBio(group, id){
   const val = document.getElementById(`person-bio-input-${group}-${id}`).value.trim();
   socket.emit('core:set-person-bio', { group, id, bio: val });
 }
-async function uploadPersonPhoto(group, id){
+function uploadPersonPhoto(group, id){
   const fileInput = document.getElementById(`person-photo-input-${group}-${id}`);
   const statusEl = document.getElementById(`person-upload-status-${group}-${id}`);
   const file = fileInput.files[0];
   if(!file){ statusEl.textContent = 'Pick an image file first.'; return; }
-  const code = prompt("Confirm core access code to upload:");
-  if(code === null) return;
-  statusEl.textContent = 'Uploading…';
-  try{
-    const form = new FormData();
-    form.append('photo', file);
-    form.append('code', code);
-    const res = await fetch(`/api/people/${group}/${id}/photo`, { method: 'POST', body: form });
-    const data = await res.json();
-    if(!res.ok){
-      statusEl.textContent = data.error || 'Upload failed.';
-      return;
+  openUploadCodeModal('Confirm your core access code to upload this photo.', async (code) => {
+    statusEl.textContent = 'Uploading…';
+    try{
+      const form = new FormData();
+      form.append('photo', file);
+      form.append('code', code);
+      const res = await fetch(`/api/people/${group}/${id}/photo`, { method: 'POST', body: form });
+      const data = await res.json();
+      if(!res.ok){
+        statusEl.textContent = data.error || 'Upload failed.';
+        return;
+      }
+      statusEl.textContent = 'Uploaded ✓';
+      fileInput.value = '';
+    }catch(e){
+      statusEl.textContent = 'Upload failed — check your connection.';
     }
-    statusEl.textContent = 'Uploaded ✓';
-    fileInput.value = '';
-  }catch(e){
-    statusEl.textContent = 'Upload failed — check your connection.';
-  }
+  });
 }
 socket.on('founders:update', (data) => { peopleCache.founders = data; renderPeople('founders'); });
 socket.on('crew:update', (data) => { peopleCache.crew = data; renderPeople('crew'); });
@@ -216,17 +216,21 @@ function toggleCore(){
     renderDoubts();
     return;
   }
-  const code = prompt("Enter core access code:");
-  if(code === null) return;
-  socket.emit('core:auth', code);
+  openUnlockModal();
 }
 socket.on('core:auth:result', (res) => {
+  if(coreModalMode !== 'unlock'){
+    // Result arrived outside of an active unlock attempt (e.g. modal
+    // already closed) — nothing to update on screen.
+    return;
+  }
   if(res.locked){
-    alert(`Too many wrong attempts. Try again in ${res.wait}s.`);
+    document.getElementById('core-modal-error').textContent = `Too many wrong attempts. Try again in ${res.wait}s.`;
     return;
   }
   if(res.success){
     coreUnlocked = true;
+    closeCoreModal();
     setCoreUI();
     renderProductions(productionsCache);
     renderAllPeople();
@@ -234,10 +238,59 @@ socket.on('core:auth:result', (res) => {
     renderBts();
     renderDoubts();
   }else{
-    const left = res.remaining !== undefined ? ` (${res.remaining} attempt${res.remaining===1?'':'s'} left before a lockout)` : '';
-    alert("Wrong code. This part of the slate stays locked." + left);
+    const left = res.remaining !== undefined ? ` (${res.remaining} attempt${res.remaining===1?'':'s'} left)` : '';
+    document.getElementById('core-modal-error').textContent = 'Wrong code.' + left;
+    document.getElementById('core-modal-input').value = '';
+    document.getElementById('core-modal-input').focus();
   }
 });
+
+/* ---------------- CORE ACCESS MODAL ---------------- */
+let coreModalMode = null; // 'unlock' | 'upload'
+let coreModalUploadCallback = null;
+
+function openUnlockModal(){
+  document.getElementById('core-modal-title').textContent = 'Core Access';
+  document.getElementById('core-modal-message').textContent = 'Enter the core access code to unlock editing across the site.';
+  document.getElementById('core-modal-input').value = '';
+  document.getElementById('core-modal-error').textContent = '';
+  document.getElementById('core-modal-confirm-label').textContent = 'Unlock';
+  coreModalMode = 'unlock';
+  coreModalUploadCallback = null;
+  const overlay = document.getElementById('core-modal-overlay');
+  overlay.style.display = 'flex';
+  setTimeout(() => document.getElementById('core-modal-input').focus(), 50);
+}
+function openUploadCodeModal(message, callback){
+  document.getElementById('core-modal-title').textContent = 'Confirm Core Code';
+  document.getElementById('core-modal-message').textContent = message;
+  document.getElementById('core-modal-input').value = '';
+  document.getElementById('core-modal-error').textContent = '';
+  document.getElementById('core-modal-confirm-label').textContent = 'Confirm';
+  coreModalMode = 'upload';
+  coreModalUploadCallback = callback;
+  const overlay = document.getElementById('core-modal-overlay');
+  overlay.style.display = 'flex';
+  setTimeout(() => document.getElementById('core-modal-input').focus(), 50);
+}
+function closeCoreModal(){
+  document.getElementById('core-modal-overlay').style.display = 'none';
+  coreModalMode = null;
+  coreModalUploadCallback = null;
+}
+function submitCoreModal(){
+  const val = document.getElementById('core-modal-input').value;
+  if(!val) return;
+  if(coreModalMode === 'unlock'){
+    document.getElementById('core-modal-error').textContent = '';
+    socket.emit('core:auth', val);
+  }else if(coreModalMode === 'upload'){
+    const cb = coreModalUploadCallback;
+    closeCoreModal();
+    if(cb) cb(val);
+  }
+}
+
 function setCoreUI(){
   ['core-toggle','core-toggle-2','core-toggle-3','core-toggle-4','core-toggle-5','core-toggle-6','core-toggle-7'].forEach(id => {
     const pill = document.getElementById(id);
@@ -362,29 +415,29 @@ function saveBtsCaption(slot){
   const val = document.getElementById('bts-caption-input-' + slot).value.trim();
   socket.emit('core:set-bts-caption', { slot, caption: val });
 }
-async function uploadBtsPhoto(slot){
+function uploadBtsPhoto(slot){
   const fileInput = document.getElementById('bts-photo-input-' + slot);
   const statusEl = document.getElementById('bts-status-' + slot);
   const file = fileInput.files[0];
   if(!file){ statusEl.textContent = 'Pick an image file first.'; return; }
-  const code = prompt("Confirm core access code to upload:");
-  if(code === null) return;
-  statusEl.textContent = 'Uploading…';
-  try{
-    const form = new FormData();
-    form.append('photo', file);
-    form.append('code', code);
-    const res = await fetch(`/api/bts/${slot}/photo`, { method: 'POST', body: form });
-    const data = await res.json();
-    if(!res.ok){
-      statusEl.textContent = data.error || 'Upload failed.';
-      return;
+  openUploadCodeModal('Confirm your core access code to upload this BTS photo.', async (code) => {
+    statusEl.textContent = 'Uploading…';
+    try{
+      const form = new FormData();
+      form.append('photo', file);
+      form.append('code', code);
+      const res = await fetch(`/api/bts/${slot}/photo`, { method: 'POST', body: form });
+      const data = await res.json();
+      if(!res.ok){
+        statusEl.textContent = data.error || 'Upload failed.';
+        return;
+      }
+      statusEl.textContent = 'Uploaded ✓';
+      fileInput.value = '';
+    }catch(e){
+      statusEl.textContent = 'Upload failed — check your connection.';
     }
-    statusEl.textContent = 'Uploaded ✓';
-    fileInput.value = '';
-  }catch(e){
-    statusEl.textContent = 'Upload failed — check your connection.';
-  }
+  });
 }
 function deleteBtsPhoto(slot){
   if(!confirm('Delete this BTS photo and caption?')) return;

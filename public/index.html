@@ -303,6 +303,20 @@
   <div class="footer-bottom">Built by Neil Roy</div>
 </footer>
 
+<!-- CORE ACCESS MODAL (replaces native browser prompts) -->
+<div class="modal-overlay" id="core-modal-overlay" onclick="if(event.target===this) closeCoreModal()">
+  <div class="modal-card">
+    <div class="gate-slate" id="core-modal-title">Core Access</div>
+    <p id="core-modal-message">Enter the core access code.</p>
+    <input type="password" id="core-modal-input" placeholder="Access code" onkeydown="if(event.key==='Enter')submitCoreModal(); if(event.key==='Escape')closeCoreModal();">
+    <div class="gate-error" id="core-modal-error"></div>
+    <div class="modal-btn-row">
+      <button class="btn" onclick="closeCoreModal()">Cancel</button>
+      <button class="btn primary" onclick="submitCoreModal()" id="core-modal-confirm-label">Unlock</button>
+    </div>
+  </div>
+</div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script src="app.js"></script>
 </body>
