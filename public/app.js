@@ -85,10 +85,18 @@ function renderGoals(){
 }
 
 /* ---------------- SIX: CAST ---------------- */
-function renderSixCast(){
-  document.getElementById('six-cast-grid').innerHTML = SIX_CAST.map((n,i) => `
-    <div class="cast-item"><span class="cast-num">${String(i+1).padStart(2,'0')}</span>${escapeHtml(n)}</div>
-  `).join('');
+function renderSixCast(filter){
+  const q = (filter || '').trim().toLowerCase();
+  const list = q ? SIX_CAST.filter(n => n.toLowerCase().includes(q)) : SIX_CAST;
+  const grid = document.getElementById('six-cast-grid');
+  grid.innerHTML = list.length
+    ? list.map((n,i) => `
+        <div class="cast-item"><span class="cast-num">${String(i+1).padStart(2,'0')}</span>${escapeHtml(n)}</div>
+      `).join('')
+    : '<div class="doubt-empty">No cast members match that search.</div>';
+}
+function filterCast(){
+  renderSixCast(document.getElementById('cast-search').value);
 }
 function showSixTab(tab){
   document.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
@@ -621,6 +629,50 @@ socket.on('chat:new', (message) => {
   renderMessages(chatCache);
 });
 
+/* ---------------- SPEECH TO TEXT (chat input) ---------------- */
+let speechRecognition = null;
+let micListening = false;
+function initSpeechToText(){
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = document.getElementById('mic-btn');
+  if(!SpeechRec){
+    if(btn) btn.classList.add('unsupported'); // browser doesn't support it — hide the button
+    return;
+  }
+  speechRecognition = new SpeechRec();
+  speechRecognition.continuous = false;
+  speechRecognition.interimResults = false;
+  speechRecognition.lang = 'en-US';
+  speechRecognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript.trim();
+    if(!transcript) return;
+    const input = document.getElementById('chat-input');
+    input.value = input.value ? (input.value.trim() + ' ' + transcript) : transcript;
+    input.focus();
+  };
+  speechRecognition.onend = () => { micListening = false; updateMicButton(); };
+  speechRecognition.onerror = () => { micListening = false; updateMicButton(); };
+}
+function toggleMic(){
+  if(!speechRecognition) return;
+  if(micListening){
+    speechRecognition.stop();
+    micListening = false;
+  }else{
+    try{
+      speechRecognition.start();
+      micListening = true;
+    }catch(e){
+      micListening = false;
+    }
+  }
+  updateMicButton();
+}
+function updateMicButton(){
+  const btn = document.getElementById('mic-btn');
+  if(btn) btn.classList.toggle('listening', micListening);
+}
+
 /* ---------------- SOCKET LIFECYCLE ---------------- */
 socket.on('init', (data) => {
   renderProductions(data.productions);
@@ -674,3 +726,4 @@ function formatTime(ts){
 renderGoals();
 renderSixCast();
 renderDoubtSuggestions();
+initSpeechToText();

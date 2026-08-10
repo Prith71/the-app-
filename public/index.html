@@ -158,6 +158,7 @@
 
       <!-- CAST -->
       <div class="subpage" id="six-cast">
+        <input type="text" id="cast-search" class="cast-search-input" placeholder="Search cast…" oninput="filterCast()">
         <div class="cast-grid" id="six-cast-grid"></div>
       </div>
 
@@ -273,6 +274,13 @@
           <div class="chat-empty">Loading messages…</div>
         </div>
         <div class="chat-inputbar">
+          <button type="button" class="mic-btn" id="mic-btn" onclick="toggleMic()" title="Speech to text">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="9" y="2.5" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M12 18v3.5M8.5 21.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
           <input type="text" id="chat-input" placeholder="Say something…" onkeydown="if(event.key==='Enter')sendMessage()">
           <button class="btn primary" onclick="sendMessage()">Send</button>
         </div>
