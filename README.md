@@ -130,6 +130,28 @@ work automatically without writing new backend code.
   refresh (Core can still delete them for you). This is a deliberate
   trade-off to avoid needing full user accounts for a small crew chat.
 
+### Chat: dates, presence, and remembered names
+
+- **Date dividers** — a "Today" / "Yesterday" / "Mon, Aug 11" label
+  automatically appears in the message log whenever the date changes,
+  same idea as WhatsApp/iMessage. Each message still shows its own time.
+- **Presence ("who's online")** — a row of name chips appears above the
+  message log. Online people show a bright dot; people who've left show a
+  dim dot plus "last seen 5m ago" (etc). Online status is live (resets if
+  the server restarts, which is correct — "online now" should reset), but
+  last-seen timestamps are saved in MongoDB, so they survive restarts.
+- **Remembered names** — once someone picks a name, it's saved in that
+  browser's `localStorage`, so next time they open the chat (on that same
+  device/browser) they skip straight past the name screen. There's a small
+  "change name" link next to their name in the chat if they want to reset
+  it. This is a browser-only convenience, not a login — a different
+  device or browser will still ask for a name the first time.
+- **Speech-to-text** — the 🎤 button next to the chat input uses the
+  browser's built-in Web Speech API to transcribe what you say into the
+  input box. Works in Chrome/Edge/Safari; the button auto-hides in
+  browsers that don't support it (like Firefox). Nothing about this goes
+  through the server — the transcription happens entirely in the browser.
+
 ## 5. Security notes
 
 - Passwords are checked **on the server**, not in the browser, so they can't

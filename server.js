@@ -95,7 +95,8 @@ const DEFAULT_DB = {
   crew: defaultGroupData(PEOPLE_GROUPS.crew),
   bts: { link: '', photos: defaultBtsPhotos() },
   doubts: [],
-  doubtSeq: 0
+  doubtSeq: 0,
+  presence: {} // { [chatName]: lastSeenTimestampMs }
 };
 
 // Everything lives in one document in one collection — simplest possible
@@ -149,6 +150,10 @@ function mergeWithDefaults(parsed) {
     return { ...d, id };
   });
   merged.doubtSeq = Math.max(merged.doubtSeq || 0, maxDoubtId);
+
+  // Presence: just a flat name -> lastSeen map, nothing to migrate beyond
+  // making sure it exists.
+  merged.presence = (parsed && typeof parsed.presence === 'object' && parsed.presence) || {};
 
   return merged;
 }
@@ -338,6 +343,25 @@ app.post('/api/bts/:slot/photo', (req, res, next) => {
 const server = http.createServer(app);
 const io = new Server(server);
 
+// ---------------------------------------------------------------------------
+// Presence: who's online right now (in-memory, resets on restart — that's
+// expected, "online now" is inherently a live/transient thing) plus
+// last-seen timestamps per name (persisted in Mongo via db.presence, so
+// "last online" survives restarts for people who aren't currently here).
+// ---------------------------------------------------------------------------
+const onlineNames = new Map(); // socket.id -> chat display name
+
+function broadcastPresence() {
+  const online = [...new Set(onlineNames.values())];
+  io.emit('presence:update', { online, lastSeen: db.presence });
+}
+
+function markSeen(name) {
+  if (!name) return;
+  db.presence[name] = Date.now();
+  saveDb();
+}
+
 io.on('connection', (socket) => {
   socket.data = {};
 
@@ -348,7 +372,8 @@ io.on('connection', (socket) => {
     trailer: db.trailer,
     founders: db.founders,
     crew: db.crew,
-    bts: db.bts
+    bts: db.bts,
+    presence: { online: [...new Set(onlineNames.values())], lastSeen: db.presence }
   });
 
   // ---------------- CHAT AUTH ----------------
@@ -371,6 +396,19 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Registers/updates this socket's display name — called as soon as
+  // someone picks a name (not just when they send their first message),
+  // so presence shows them online right away.
+  socket.on('chat:set-name', (name) => {
+    if (!socket.data.chatAuthed) return;
+    const clean = String(name || '').slice(0, 40).trim();
+    if (!clean) return;
+    socket.data.chatName = clean;
+    onlineNames.set(socket.id, clean);
+    markSeen(clean);
+    broadcastPresence();
+  });
+
   socket.on('chat:send', ({ name, text }) => {
     if (!socket.data.chatAuthed) return;
     const cleanName = String(name || 'Anonymous').slice(0, 40).trim() || 'Anonymous';
@@ -386,6 +424,7 @@ io.on('connection', (socket) => {
       pinned: false
     };
     db.messages.push(message);
+    markSeen(cleanName);
     saveDb();
     io.emit('chat:new', message);
   });
@@ -536,6 +575,14 @@ io.on('connection', (socket) => {
     db.doubts.splice(idx, 1);
     saveDb();
     io.to('core').emit('doubts:update', db.doubts);
+  });
+
+  socket.on('disconnect', () => {
+    if (socket.data.chatName) {
+      markSeen(socket.data.chatName); // last-seen = the moment they left
+      onlineNames.delete(socket.id);
+      broadcastPresence();
+    }
   });
 });
 

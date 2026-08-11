@@ -527,6 +527,7 @@ socket.on('chat:auth:result', (res) => {
     mySenderId = res.senderId || null;
     err.textContent = '';
     go('chat');
+    autoJoinIfSavedName();
   }else{
     const left = res.remaining !== undefined ? ` (${res.remaining} left)` : '';
     err.textContent = 'Wrong code. Try again.' + left;
@@ -539,13 +540,35 @@ socket.on('chat:history', (messages) => {
 
 /* ---------------- CHAT ---------------- */
 let mySenderId = null;
+const CHAT_NAME_STORAGE_KEY = 'angyChatName';
+function autoJoinIfSavedName(){
+  let saved = null;
+  try{ saved = localStorage.getItem(CHAT_NAME_STORAGE_KEY); }catch(e){ /* storage unavailable — fine, just skip */ }
+  if(!saved) return false;
+  chatName = saved;
+  document.getElementById('name-card').style.display = 'none';
+  document.getElementById('chat-shell').style.display = 'flex';
+  document.getElementById('chat-name-display').textContent = chatName;
+  socket.emit('chat:set-name', chatName);
+  return true;
+}
 function setChatName(){
   const val = document.getElementById('chat-name-input').value.trim();
   if(!val) return;
   chatName = val;
+  try{ localStorage.setItem(CHAT_NAME_STORAGE_KEY, chatName); }catch(e){ /* storage unavailable — name just won't be remembered */ }
   document.getElementById('name-card').style.display = 'none';
   document.getElementById('chat-shell').style.display = 'flex';
   document.getElementById('chat-name-display').textContent = chatName;
+  socket.emit('chat:set-name', chatName);
+}
+function changeChatName(){
+  try{ localStorage.removeItem(CHAT_NAME_STORAGE_KEY); }catch(e){}
+  chatName = '';
+  document.getElementById('chat-shell').style.display = 'none';
+  document.getElementById('name-card').style.display = 'block';
+  document.getElementById('chat-name-input').value = '';
+  document.getElementById('chat-name-input').focus();
 }
 let chatCache = [];
 function renderMessages(list){
@@ -556,7 +579,14 @@ function renderMessages(list){
     return;
   }
   const wasNearBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 80;
-  log.innerHTML = list.map(m => {
+  let lastDateKey = null;
+  const parts = [];
+  list.forEach(m => {
+    const dateKey = new Date(m.ts).toDateString();
+    if(dateKey !== lastDateKey){
+      parts.push(`<div class="chat-date-divider"><span>${formatDateLabel(m.ts)}</span></div>`);
+      lastDateKey = dateKey;
+    }
     const isMe = m.name === chatName && m.senderId === mySenderId;
     const canDelete = coreUnlocked || (m.senderId && m.senderId === mySenderId);
     const actions = [];
@@ -566,7 +596,7 @@ function renderMessages(list){
     if(canDelete){
       actions.push(`<button class="msg-action" onclick="deleteMessage(${m.id})" title="Delete">🗑</button>`);
     }
-    return `
+    parts.push(`
     <div class="msg ${isMe ? 'me' : ''}${m.pinned ? ' pinned' : ''}">
       <div class="meta">
         <span>${m.pinned ? '📌 ' : ''}${escapeHtml(m.name)} · ${formatTime(m.ts)}</span>
@@ -574,8 +604,9 @@ function renderMessages(list){
       </div>
       <div class="bubble">${escapeHtml(m.text)}</div>
     </div>
-  `;
-  }).join('');
+  `);
+  });
+  log.innerHTML = parts.join('');
   if(wasNearBottom) scrollChatToBottom();
 }
 function renderPinnedStrip(list){
@@ -685,6 +716,7 @@ socket.on('init', (data) => {
   renderAllPeople();
   btsCache = data.bts || { link: '', photos: [] };
   renderBts();
+  renderPresence(data.presence);
 });
 socket.on('productions:update', (list) => renderProductions(list));
 socket.on('connect', () => {
@@ -698,7 +730,7 @@ socket.on('disconnect', () => {
 
 /* ---------------- CLICK ANIMATION ---------------- */
 document.addEventListener('click', function(e){
-  const el = e.target.closest('.btn, .navlinks button, .core-pill, .reel-remove, .reel-card.clickable, .subtab-btn, .explore-card, .footer-links button, .doubt-chip');
+  const el = e.target.closest('.btn, .navlinks button, .core-pill, .reel-remove, .reel-card.clickable, .subtab-btn, .explore-card, .footer-links button, .doubt-chip, .mic-btn, .change-name-link');
   if(!el) return;
   const rect = el.getBoundingClientRect();
   const size = Math.max(rect.width, rect.height) * 1.2;
@@ -721,6 +753,63 @@ function formatTime(ts){
   const d = new Date(ts);
   return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 }
+function formatDateLabel(ts){
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  if(sameDay(d, now)) return 'Today';
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if(sameDay(d, yesterday)) return 'Yesterday';
+  const opts = d.getFullYear() === now.getFullYear()
+    ? { weekday:'short', month:'short', day:'numeric' }
+    : { weekday:'short', month:'short', day:'numeric', year:'numeric' };
+  return d.toLocaleDateString([], opts);
+}
+function formatRelativeTime(ts){
+  if(!ts) return 'a while ago';
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if(min < 1) return 'just now';
+  if(min < 60) return min + 'm ago';
+  const hr = Math.floor(min / 60);
+  if(hr < 24) return hr + 'h ago';
+  const day = Math.floor(hr / 24);
+  if(day < 7) return day + 'd ago';
+  return new Date(ts).toLocaleDateString([], {month:'short', day:'numeric'});
+}
+
+/* ---------------- PRESENCE (who's online / last seen) ---------------- */
+let presenceCache = { online: [], lastSeen: {} };
+function renderPresence(data){
+  presenceCache = data || { online: [], lastSeen: {} };
+  const bar = document.getElementById('participants-bar');
+  if(!bar) return;
+  const online = new Set(presenceCache.online || []);
+  const lastSeen = presenceCache.lastSeen || {};
+  const allNames = new Set([...online, ...Object.keys(lastSeen)]);
+  if(allNames.size === 0){
+    bar.style.display = 'none';
+    bar.innerHTML = '';
+    return;
+  }
+  const list = [...allNames].map(name => ({
+    name,
+    isOnline: online.has(name),
+    lastSeenTs: lastSeen[name] || 0
+  }));
+  list.sort((a,b) => {
+    if(a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+    return b.lastSeenTs - a.lastSeenTs;
+  });
+  bar.style.display = 'flex';
+  bar.innerHTML = list.map(p => `
+    <div class="participant-chip${p.isOnline ? ' online' : ''}" title="${p.isOnline ? 'Online now' : 'Last seen ' + formatRelativeTime(p.lastSeenTs)}">
+      <span class="dot"></span>${escapeHtml(p.name)}${p.isOnline ? '' : ` <span class="last-seen">· ${formatRelativeTime(p.lastSeenTs)}</span>`}
+    </div>
+  `).join('');
+}
+socket.on('presence:update', renderPresence);
 
 /* ---------------- INIT ---------------- */
 renderGoals();

@@ -266,9 +266,10 @@
 
       <div class="chat-shell" id="chat-shell" style="display:none;">
         <div class="chat-topbar">
-          <span>Chatting as <b id="chat-name-display"></b></span>
+          <span>Chatting as <b id="chat-name-display"></b> <button class="change-name-link" onclick="changeChatName()">change name</button></span>
           <span id="chat-status">● live</span>
         </div>
+        <div class="participants-bar" id="participants-bar" style="display:none;"></div>
         <div class="pinned-strip" id="pinned-strip" style="display:none;"></div>
         <div class="chat-log" id="chat-log">
           <div class="chat-empty">Loading messages…</div>
