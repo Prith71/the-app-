@@ -26,6 +26,11 @@
       <button data-nav="productions" onclick="go('productions')">Productions</button>
       <button data-nav="chat" onclick="go('chat')">Chat</button>
     </div>
+    <button class="hamburger-btn" onclick="openMenu()" aria-label="Open menu">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
   </div>
 </nav>
 
@@ -322,6 +327,46 @@
     <div class="modal-btn-row">
       <button class="btn" onclick="closeCoreModal()">Cancel</button>
       <button class="btn primary" onclick="submitCoreModal()" id="core-modal-confirm-label">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIDE MENU (hamburger) -->
+<div class="side-menu-overlay" id="side-menu-overlay" onclick="if(event.target===this) closeMenu()">
+  <div class="side-menu-panel">
+    <div class="side-menu-header">
+      <span>Menu</span>
+      <button class="side-menu-close" onclick="closeMenu()" aria-label="Close menu">✕</button>
+    </div>
+    <div class="side-menu-items">
+
+      <div class="side-menu-item">
+        <button class="side-menu-item-btn" onclick="toggleMenuSection('contact')">Where to contact us</button>
+        <div class="side-menu-section" id="menu-section-contact">
+          <p>Best way to reach us: DM us on Instagram, or drop a question anonymously in the Doubts box.</p>
+          <a href="https://instagram.com/angy.production" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.5" y="2.5" width="19" height="19" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.3" stroke="currentColor" stroke-width="1.8"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor"/></svg>
+            @angy.production
+          </a>
+        </div>
+      </div>
+
+      <div class="side-menu-item">
+        <button class="side-menu-item-btn" onclick="toggleMenuSection('social')">Social Media</button>
+        <div class="side-menu-section" id="menu-section-social">
+          <a href="https://instagram.com/angy.production" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.5" y="2.5" width="19" height="19" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.3" stroke="currentColor" stroke-width="1.8"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor"/></svg>
+            @angy.production
+          </a>
+          <a href="https://youtube.com/@AngyProductions1" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="5.5" width="20" height="13" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 9.3v5.4l4.8-2.7-4.8-2.7z" fill="currentColor"/></svg>
+            @AngyProductions1
+          </a>
+        </div>
+      </div>
+
+      <button class="side-menu-item-btn side-menu-help" onclick="goToHelp()">Help</button>
+
     </div>
   </div>
 </div>

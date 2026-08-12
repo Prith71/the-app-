@@ -74,6 +74,33 @@ function go(view){
   if(view === 'chat'){ scrollChatToBottom(); }
 }
 
+/* ---------------- SIDE MENU (hamburger) ---------------- */
+function openMenu(){
+  document.getElementById('side-menu-overlay').classList.add('open');
+}
+function closeMenu(){
+  document.getElementById('side-menu-overlay').classList.remove('open');
+  document.querySelectorAll('.side-menu-section.open').forEach(el => el.classList.remove('open'));
+}
+function toggleMenuSection(key){
+  const el = document.getElementById('menu-section-' + key);
+  if(!el) return;
+  const isOpen = el.classList.contains('open');
+  document.querySelectorAll('.side-menu-section.open').forEach(e => e.classList.remove('open'));
+  if(!isOpen) el.classList.add('open');
+}
+function goToHelp(){
+  closeMenu();
+  go('core');
+  showSixTab('doubts');
+}
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape'){
+    const overlay = document.getElementById('side-menu-overlay');
+    if(overlay && overlay.classList.contains('open')) closeMenu();
+  }
+});
+
 /* ---------------- GOALS ---------------- */
 function renderGoals(){
   document.getElementById('goals-list').innerHTML = GOALS.map((g,i) => `
@@ -730,7 +757,7 @@ socket.on('disconnect', () => {
 
 /* ---------------- CLICK ANIMATION ---------------- */
 document.addEventListener('click', function(e){
-  const el = e.target.closest('.btn, .navlinks button, .core-pill, .reel-remove, .reel-card.clickable, .subtab-btn, .explore-card, .footer-links button, .doubt-chip, .mic-btn, .change-name-link');
+  const el = e.target.closest('.btn, .navlinks button, .core-pill, .reel-remove, .reel-card.clickable, .subtab-btn, .explore-card, .footer-links button, .doubt-chip, .mic-btn, .change-name-link, .hamburger-btn, .side-menu-item-btn, .side-menu-close');
   if(!el) return;
   const rect = el.getBoundingClientRect();
   const size = Math.max(rect.width, rect.height) * 1.2;
