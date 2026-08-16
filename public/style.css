@@ -423,9 +423,44 @@ main{ flex:1; }
   background:var(--ink-panel); border:1px solid var(--ink-line); border-radius:10px;
   padding:14px 16px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
 }
+.doubt-item-buttons{ display:flex; flex-direction:column; gap:6px; flex:none; }
+.doubt-item-buttons .msg-action{ white-space:nowrap; }
+.doubt-item-main{ flex:1; min-width:0; }
 .doubt-item-text{ font-size:14px; line-height:1.5; }
 .doubt-item-meta{ font-family:var(--mono); font-size:10px; color:var(--text-dim); margin-top:6px; }
 .doubt-empty{ font-family:var(--mono); font-size:12px; color:var(--text-dim); }
+.doubt-reply-edit{
+  display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;
+  border-top:1px solid var(--ink-line); padding-top:12px;
+}
+.doubt-reply-edit input{
+  flex:1; min-width:160px;
+  background:var(--ink); border:1px solid var(--ink-line); color:var(--text);
+  padding:9px 12px; border-radius:8px; font-family:var(--body); font-size:13px;
+}
+.doubt-reply-edit input:focus{ outline:none; border-color:var(--lime); }
+.doubt-reply-shown{
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--ink-line);
+  font-size:13px; color:var(--text-dim); line-height:1.5;
+  display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+}
+.doubt-reply-label{ font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:var(--lime); }
+
+.my-doubts-panel{ max-width:560px; padding-bottom:10px; }
+.my-doubts-list{ display:flex; flex-direction:column; gap:10px; }
+.my-doubt-item{
+  background:var(--ink-panel); border:1px solid var(--ink-line); border-radius:10px;
+  padding:14px 16px;
+}
+.my-doubt-question{ font-size:14px; line-height:1.5; }
+.my-doubt-reply{
+  margin-top:10px; padding-top:10px; border-top:1px solid var(--ink-line);
+  font-size:13px; color:var(--text-dim); line-height:1.5;
+}
+.my-doubt-pending{
+  margin-top:10px; padding-top:10px; border-top:1px solid var(--ink-line);
+  font-family:var(--mono); font-size:11px; color:var(--text-dim);
+}
 
 /* ---------- FOUNDERS ---------- */
 .founders-grid{
@@ -632,6 +667,8 @@ main{ flex:1; }
 .modal-card input:focus{ outline:none; border-color:var(--lime); }
 .modal-btn-row{ display:flex; gap:10px; margin-top:6px; }
 .modal-btn-row .btn{ flex:1; }
+.btn.danger{ background:#e5484d; border-color:#e5484d; color:#fff; }
+.btn.danger:hover{ background:#ff5c60; border-color:#ff5c60; }
 
 /* ---------- SIDE MENU (hamburger drawer) ---------- */
 .side-menu-overlay{
@@ -761,15 +798,16 @@ main{ flex:1; }
 }
 .msg.me .meta{ justify-content:flex-end; }
 .msg .msg-actions{
-  display:inline-flex; gap:4px; opacity:0; transition:opacity .15s ease;
+  display:inline-flex; gap:4px;
 }
-.msg:hover .msg-actions{ opacity:1; }
 .msg-action{
   background:var(--ink-panel-2); border:1px solid var(--ink-line); border-radius:6px;
   font-size:11px; line-height:1; padding:3px 6px; cursor:pointer; color:var(--text-dim);
 }
 .msg-action:hover{ color:var(--text); border-color:var(--text-dim); }
 .msg.pinned .bubble{ border-color:var(--lime); }
+.msg.from-doubt .bubble{ background:var(--ink-panel-2); border-color:var(--hot); border-style:dashed; }
+.msg.from-doubt .meta{ color:var(--hot); }
 .msg .bubble{
   background:var(--ink-panel-2); border:1px solid var(--ink-line);
   padding:10px 14px; border-radius:10px; font-size:14px; line-height:1.4;

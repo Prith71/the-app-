@@ -130,6 +130,46 @@ work automatically without writing new backend code.
   refresh (Core can still delete them for you). This is a deliberate
   trade-off to avoid needing full user accounts for a small crew chat.
 
+### Doubts: private replies from Core
+
+Core can now reply to an anonymous question, and **only the person who
+asked it** can see the reply — not other visitors, not even other people
+looking at the Doubts tab.
+
+How this works without any login system: when someone submits a question,
+the server generates a random, unguessable token and sends it back to
+*only that browser* (never broadcast anywhere else). That browser saves
+the token locally. To check for a reply later, it sends the token back —
+the server only returns a reply if the id and token match exactly. I
+tested this directly: a browser with the correct token gets the reply;
+a browser with a guessed/wrong token gets nothing back, even though it
+asked for the same question id.
+
+Practical notes:
+- Like the remembered chat name, this is tied to the browser/device that
+  asked the question, not an account. Clearing site data or asking from a
+  different device means that older question won't show a reply there.
+- Core can edit a reply after sending it — click **Edit** next to an
+  existing reply on the Doubts tab.
+- Doubts that existed before this feature shipped won't have a working
+  reply link for their original asker (there was no token to hand out at
+  the time) — this is intentional; the alternative would be guessing who
+  asked, which isn't safe to do.
+
+**Tag a question into the crew chat** — on any doubt, Core has a
+**💬 Tag in chat** button. It posts the question into the live crew chat
+as a message from "Core" (dashed border, distinct from regular messages)
+so everyone can discuss it together — useful for questions worth talking
+through as a group rather than answering one-on-one. Posting doesn't
+require the Core member to have separately unlocked chat; being Core is
+enough trust for this. I also fixed a related gap while building this:
+chat messages previously broadcast to every connected visitor's browser,
+not just people who'd actually unlocked chat (the chat page itself was
+still gated, but the underlying data was technically reaching anyone
+connected to the site). Chat events are now scoped so only chat-unlocked
+sockets receive them — I verified this directly by connecting a socket
+that never entered the chat password and confirming it receives nothing.
+
 ### Chat: dates, presence, and remembered names
 
 - **Date dividers** — a "Today" / "Yesterday" / "Mon, Aug 11" label

@@ -229,6 +229,12 @@
           <div class="doubt-sent-msg" id="doubt-sent-msg"></div>
         </div>
 
+        <div class="my-doubts-panel" id="my-doubts-panel" style="display:none;">
+          <div class="section-label" style="margin:10px 0 10px;">Your Questions</div>
+          <p class="hint" style="margin-bottom:14px;">Only visible on this device — replies show up here once Core answers.</p>
+          <div class="my-doubts-list" id="my-doubts-list"></div>
+        </div>
+
         <div class="doubt-core-panel">
           <div class="core-inline" style="margin:36px 0 18px;">
             <button class="core-pill" id="core-toggle-7" onclick="toggleCore()">🔒 Core access — view questions</button>
@@ -327,6 +333,18 @@
     <div class="modal-btn-row">
       <button class="btn" onclick="closeCoreModal()">Cancel</button>
       <button class="btn primary" onclick="submitCoreModal()" id="core-modal-confirm-label">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL (replaces native browser confirm() for delete actions) -->
+<div class="modal-overlay" id="confirm-modal-overlay" onclick="if(event.target===this) closeConfirmModal()">
+  <div class="modal-card">
+    <div class="gate-slate">Confirm</div>
+    <p id="confirm-modal-message">Are you sure?</p>
+    <div class="modal-btn-row">
+      <button class="btn" onclick="closeConfirmModal()">Cancel</button>
+      <button class="btn primary danger" onclick="confirmModalAction()" id="confirm-modal-btn">Delete</button>
     </div>
   </div>
 </div>

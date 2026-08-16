@@ -110,13 +110,14 @@ let stateCollection = null;
 function mergeWithDefaults(parsed) {
   const merged = { ...DEFAULT_DB, ...(parsed || {}) };
 
-  // Backfill id/pinned on any messages saved before pin/delete existed,
-  // and make sure messageSeq is always ahead of the highest id in use.
+  // Backfill id/pinned/fromDoubt on any messages saved before those
+  // existed, and make sure messageSeq is always ahead of the highest id
+  // in use.
   let maxId = 0;
   merged.messages = (merged.messages || []).map((m, i) => {
     const id = typeof m.id === 'number' ? m.id : i + 1;
     maxId = Math.max(maxId, id);
-    return { ...m, id, pinned: !!m.pinned };
+    return { ...m, id, pinned: !!m.pinned, fromDoubt: !!m.fromDoubt };
   });
   merged.messageSeq = Math.max(merged.messageSeq || 0, maxId);
 
@@ -143,11 +144,21 @@ function mergeWithDefaults(parsed) {
   };
 
   // Doubts: backfill ids, keep doubtSeq ahead of the highest id in use.
+  // Doubts saved before replies existed get a fresh token here — their
+  // original asker never received it (the feature didn't exist yet), so
+  // those particular doubts just won't surface a reply for anyone, which
+  // is the correct/safe behavior rather than guessing an owner.
   let maxDoubtId = 0;
   merged.doubts = (merged.doubts || []).map((d, i) => {
     const id = typeof d.id === 'number' ? d.id : i + 1;
     maxDoubtId = Math.max(maxDoubtId, id);
-    return { ...d, id };
+    return {
+      ...d,
+      id,
+      token: typeof d.token === 'string' ? d.token : crypto.randomUUID(),
+      reply: typeof d.reply === 'string' ? d.reply : '',
+      repliedAt: typeof d.repliedAt === 'number' ? d.repliedAt : null
+    };
   });
   merged.doubtSeq = Math.max(merged.doubtSeq || 0, maxDoubtId);
 
@@ -387,6 +398,7 @@ io.on('connection', (socket) => {
       registerSuccess(socket, 'chat');
       socket.data.chatAuthed = true;
       socket.data.chatSenderId = crypto.randomUUID();
+      socket.join('chat'); // so chat:new/deleted/pinned reach only chat-authed sockets
       socket.emit('chat:auth:result', { success: true, senderId: socket.data.chatSenderId });
       socket.emit('chat:history', db.messages);
     } else {
@@ -421,12 +433,13 @@ io.on('connection', (socket) => {
       text: cleanText,
       ts: Date.now(),
       senderId: socket.data.chatSenderId,
-      pinned: false
+      pinned: false,
+      fromDoubt: false
     };
     db.messages.push(message);
     markSeen(cleanName);
     saveDb();
-    io.emit('chat:new', message);
+    io.to('chat').emit('chat:new', message);
   });
 
   // Delete: allowed for Core (any message) or the original sender
@@ -440,7 +453,7 @@ io.on('connection', (socket) => {
     if (!socket.data.coreAuthed && !isOwner) return;
     db.messages.splice(idx, 1);
     saveDb();
-    io.emit('chat:deleted', { id });
+    io.to('chat').emit('chat:deleted', { id });
   });
 
   // Pin/unpin: Core only.
@@ -450,7 +463,29 @@ io.on('connection', (socket) => {
     if (!msg) return;
     msg.pinned = !!pinned;
     saveDb();
-    io.emit('chat:pinned', { id, pinned: msg.pinned });
+    io.to('chat').emit('chat:pinned', { id, pinned: msg.pinned });
+  });
+
+  // Core-only: post a doubt's question into the crew chat, so everyone can
+  // discuss it together. Doesn't require the Core member to have also
+  // unlocked chat separately — being Core is enough trust for this.
+  socket.on('core:tag-doubt-to-chat', (doubtId) => {
+    if (!socket.data.coreAuthed) return;
+    const doubt = db.doubts.find((d) => d.id === doubtId);
+    if (!doubt) return;
+    db.messageSeq += 1;
+    const message = {
+      id: db.messageSeq,
+      name: 'Core',
+      text: doubt.text,
+      ts: Date.now(),
+      senderId: null,
+      pinned: false,
+      fromDoubt: true
+    };
+    db.messages.push(message);
+    saveDb();
+    io.to('chat').emit('chat:new', message);
   });
 
   // ---------------- CORE AUTH ----------------
@@ -555,17 +590,60 @@ io.on('connection', (socket) => {
 
   // ---------------- DOUBTS (anonymous questions to Core) ----------------
   // Submitting requires no auth at all — that's the point, it's anonymous
-  // and open to any visitor. Viewing the list and deleting are Core-only,
-  // and the list is only ever sent to sockets in the 'core' room (joined
-  // on successful core:auth above) so regular visitors never receive it.
+  // and open to any visitor. Viewing the full list and deleting are
+  // Core-only, and that list is only ever sent to sockets in the 'core'
+  // room (joined on successful core:auth above) so regular visitors never
+  // receive it.
+  //
+  // Replies are private to the original asker. Since doubts have no login
+  // behind them, ownership is proven with a random token: the submitter's
+  // browser gets the token once, right after submitting (never broadcast
+  // to anyone else, not even Core's live feed), and saves it locally. To
+  // check for a reply later, the browser sends back {id, token} pairs —
+  // only exact id+token matches are returned, so nobody else can read
+  // someone else's reply even if they somehow knew the doubt's id.
   socket.on('doubt:submit', (text) => {
     const clean = String(text || '').slice(0, 500).trim();
     if (!clean) return;
     db.doubtSeq += 1;
-    const doubt = { id: db.doubtSeq, text: clean, ts: Date.now() };
+    const token = crypto.randomUUID();
+    const doubt = {
+      id: db.doubtSeq,
+      text: clean,
+      ts: Date.now(),
+      token,
+      reply: '',
+      repliedAt: null
+    };
     db.doubts.push(doubt);
     saveDb();
     io.to('core').emit('doubts:update', db.doubts);
+    socket.emit('doubt:submitted', { id: doubt.id, token }); // private to the submitter only
+  });
+
+  socket.on('doubt:reply', ({ id, reply }) => {
+    if (!socket.data.coreAuthed) return;
+    const doubt = db.doubts.find((d) => d.id === id);
+    if (!doubt) return;
+    const clean = String(reply || '').slice(0, 500).trim();
+    doubt.reply = clean;
+    doubt.repliedAt = clean ? Date.now() : null;
+    saveDb();
+    io.to('core').emit('doubts:update', db.doubts);
+  });
+
+  // A browser checks its locally-saved {id, token} pairs against the
+  // server to see if any of its own doubts have a reply yet. Only exact
+  // matches come back — this is the only way reply content ever reaches
+  // a non-Core socket.
+  socket.on('doubt:check-mine', (mine) => {
+    if (!Array.isArray(mine)) return;
+    const results = mine
+      .filter((m) => m && typeof m.id === 'number' && typeof m.token === 'string')
+      .map(({ id, token }) => db.doubts.find((d) => d.id === id && d.token === token))
+      .filter(Boolean)
+      .map((d) => ({ id: d.id, text: d.text, ts: d.ts, reply: d.reply, repliedAt: d.repliedAt }));
+    socket.emit('doubt:mine-update', results);
   });
 
   socket.on('doubt:delete', (id) => {

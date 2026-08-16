@@ -71,7 +71,7 @@ function go(view){
   const navKey = (view === 'chat-gate') ? 'chat' : view;
   const btn = document.querySelector('.navlinks button[data-nav="' + navKey + '"]');
   if(btn) btn.classList.add('active');
-  if(view === 'chat'){ scrollChatToBottom(); }
+  if(view === 'chat'){ renderMessages(chatCache); scrollChatToBottom(); }
 }
 
 /* ---------------- SIDE MENU (hamburger) ---------------- */
@@ -98,6 +98,8 @@ document.addEventListener('keydown', (e) => {
   if(e.key === 'Escape'){
     const overlay = document.getElementById('side-menu-overlay');
     if(overlay && overlay.classList.contains('open')) closeMenu();
+    const confirmOverlay = document.getElementById('confirm-modal-overlay');
+    if(confirmOverlay && confirmOverlay.style.display === 'flex') closeConfirmModal();
   }
 });
 
@@ -130,6 +132,7 @@ function showSixTab(tab){
   document.querySelector('.subtab-btn[data-sixtab="' + tab + '"]').classList.add('active');
   document.querySelectorAll('.subpage').forEach(p => p.classList.remove('active'));
   document.getElementById('six-' + tab).classList.add('active');
+  if(tab === 'doubts') checkMyDoubts();
 }
 
 /* ---------------- PEOPLE (Founders / Crew — photo + bio, core-only) ---------------- */
@@ -326,6 +329,27 @@ function submitCoreModal(){
   }
 }
 
+/* ---------------- CONFIRM MODAL (in-app, replaces confirm()) ---------------- */
+let confirmModalCallback = null;
+function openConfirmModal(message, callback, opts){
+  const options = opts || {};
+  document.getElementById('confirm-modal-message').textContent = message;
+  confirmModalCallback = callback;
+  const btn = document.getElementById('confirm-modal-btn');
+  btn.textContent = options.confirmLabel || 'Delete';
+  btn.classList.toggle('danger', options.danger !== false);
+  document.getElementById('confirm-modal-overlay').style.display = 'flex';
+}
+function closeConfirmModal(){
+  document.getElementById('confirm-modal-overlay').style.display = 'none';
+  confirmModalCallback = null;
+}
+function confirmModalAction(){
+  const cb = confirmModalCallback;
+  closeConfirmModal();
+  if(cb) cb();
+}
+
 function setCoreUI(){
   ['core-toggle','core-toggle-2','core-toggle-3','core-toggle-4','core-toggle-5','core-toggle-6','core-toggle-7'].forEach(id => {
     const pill = document.getElementById(id);
@@ -475,8 +499,7 @@ function uploadBtsPhoto(slot){
   });
 }
 function deleteBtsPhoto(slot){
-  if(!confirm('Delete this BTS photo and caption?')) return;
-  socket.emit('core:delete-bts-photo', slot);
+  openConfirmModal('Delete this BTS photo and caption?', () => socket.emit('core:delete-bts-photo', slot));
 }
 socket.on('bts:update', (data) => { btsCache = data; renderBts(); });
 
@@ -511,6 +534,9 @@ function submitDoubt(){
   msgEl.textContent = 'Sent anonymously to Core. Thanks!';
   setTimeout(() => { if(msgEl.textContent === 'Sent anonymously to Core. Thanks!') msgEl.textContent = ''; }, 4000);
 }
+
+/* ---- Core side: view questions + reply privately ---- */
+let editingDoubtReplies = new Set();
 function renderDoubts(){
   const list = document.getElementById('doubts-list');
   if(!coreUnlocked){
@@ -522,21 +548,100 @@ function renderDoubts(){
     return;
   }
   const sorted = [...doubtsCache].sort((a,b) => b.ts - a.ts);
-  list.innerHTML = sorted.map(d => `
+  list.innerHTML = sorted.map(d => {
+    const showEditor = editingDoubtReplies.has(d.id) || !d.reply;
+    const replyHtml = showEditor ? `
+      <div class="doubt-reply-edit">
+        <input type="text" id="doubt-reply-input-${d.id}" value="${escapeHtml(d.reply || '')}" placeholder="Reply privately to this person…" maxlength="500">
+        <div class="bts-slot-btn-row">
+          <button class="btn primary" onclick="sendDoubtReply(${d.id})">${d.reply ? 'Update reply' : 'Send reply'}</button>
+          ${d.reply ? `<button class="btn" onclick="cancelDoubtReplyEdit(${d.id})">Cancel</button>` : ''}
+        </div>
+      </div>
+    ` : `
+      <div class="doubt-reply-shown">
+        <span class="doubt-reply-label">Your reply:</span> ${escapeHtml(d.reply)}
+        <button class="msg-action" onclick="startDoubtReplyEdit(${d.id})">Edit</button>
+      </div>
+    `;
+    return `
     <div class="doubt-item">
-      <div>
+      <div class="doubt-item-main">
         <div class="doubt-item-text">${escapeHtml(d.text)}</div>
         <div class="doubt-item-meta">${formatTime(d.ts)}</div>
+        ${replyHtml}
       </div>
-      <button class="reel-remove" onclick="deleteDoubt(${d.id})">Delete</button>
+      <div class="doubt-item-buttons">
+        <button class="msg-action" onclick="tagDoubtToChat(${d.id})" title="Post this question to the crew chat">💬 Tag in chat</button>
+        <button class="reel-remove" onclick="deleteDoubt(${d.id})">Delete</button>
+      </div>
+    </div>
+  `;
+  }).join('');
+}
+function tagDoubtToChat(id){
+  openConfirmModal(
+    'Post this question to the crew chat for everyone to see and discuss?',
+    () => socket.emit('core:tag-doubt-to-chat', id),
+    { confirmLabel: 'Post to chat', danger: false }
+  );
+}
+function startDoubtReplyEdit(id){ editingDoubtReplies.add(id); renderDoubts(); }
+function cancelDoubtReplyEdit(id){ editingDoubtReplies.delete(id); renderDoubts(); }
+function sendDoubtReply(id){
+  const input = document.getElementById('doubt-reply-input-' + id);
+  const val = input.value.trim();
+  socket.emit('doubt:reply', { id, reply: val });
+  editingDoubtReplies.delete(id);
+}
+function deleteDoubt(id){
+  openConfirmModal('Delete this question?', () => socket.emit('doubt:delete', id));
+}
+socket.on('doubts:update', (list) => { doubtsCache = list; renderDoubts(); });
+
+/* ---- Asker side: privately check for a reply to a doubt you sent ---- */
+const MY_DOUBTS_STORAGE_KEY = 'angyMyDoubts';
+function getMyDoubtTokens(){
+  try{ return JSON.parse(localStorage.getItem(MY_DOUBTS_STORAGE_KEY) || '[]'); }
+  catch(e){ return []; }
+}
+function saveMyDoubtTokens(list){
+  try{ localStorage.setItem(MY_DOUBTS_STORAGE_KEY, JSON.stringify(list)); }
+  catch(e){ /* storage unavailable — reply-checking just won't persist */ }
+}
+function checkMyDoubts(){
+  const mine = getMyDoubtTokens();
+  if(mine.length === 0){ renderMyDoubts([]); return; }
+  socket.emit('doubt:check-mine', mine);
+}
+function renderMyDoubts(list){
+  const panel = document.getElementById('my-doubts-panel');
+  const container = document.getElementById('my-doubts-list');
+  if(!panel || !container) return;
+  if(!list || list.length === 0){
+    panel.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+  panel.style.display = 'block';
+  const sorted = [...list].sort((a,b) => b.ts - a.ts);
+  container.innerHTML = sorted.map(d => `
+    <div class="my-doubt-item">
+      <div class="my-doubt-question">${escapeHtml(d.text)}</div>
+      ${d.reply
+        ? `<div class="my-doubt-reply"><span class="doubt-reply-label">Core replied:</span> ${escapeHtml(d.reply)}</div>`
+        : `<div class="my-doubt-pending">Waiting for a reply from Core…</div>`}
     </div>
   `).join('');
 }
-function deleteDoubt(id){
-  if(!confirm('Delete this question?')) return;
-  socket.emit('doubt:delete', id);
-}
-socket.on('doubts:update', (list) => { doubtsCache = list; renderDoubts(); });
+socket.on('doubt:submitted', ({ id, token }) => {
+  const mine = getMyDoubtTokens();
+  mine.push({ id, token });
+  saveMyDoubtTokens(mine);
+  checkMyDoubts();
+});
+socket.on('doubt:mine-update', renderMyDoubts);
+
 
 /* ---------------- CHAT GATE ---------------- */
 function checkChatPassword(){
@@ -624,9 +729,9 @@ function renderMessages(list){
       actions.push(`<button class="msg-action" onclick="deleteMessage(${m.id})" title="Delete">🗑</button>`);
     }
     parts.push(`
-    <div class="msg ${isMe ? 'me' : ''}${m.pinned ? ' pinned' : ''}">
+    <div class="msg ${isMe ? 'me' : ''}${m.pinned ? ' pinned' : ''}${m.fromDoubt ? ' from-doubt' : ''}">
       <div class="meta">
-        <span>${m.pinned ? '📌 ' : ''}${escapeHtml(m.name)} · ${formatTime(m.ts)}</span>
+        <span>${m.pinned ? '📌 ' : ''}${m.fromDoubt ? '💬 Tagged from Doubts · ' : ''}${escapeHtml(m.name)} · ${formatTime(m.ts)}</span>
         ${actions.length ? `<span class="msg-actions">${actions.join('')}</span>` : ''}
       </div>
       <div class="bubble">${escapeHtml(m.text)}</div>
@@ -656,8 +761,7 @@ function renderPinnedStrip(list){
   `).join('');
 }
 function deleteMessage(id){
-  if(!confirm('Delete this message?')) return;
-  socket.emit('chat:delete', id);
+  openConfirmModal('Delete this message? This can\'t be undone.', () => socket.emit('chat:delete', id));
 }
 function togglePin(id, pinned){
   socket.emit('chat:pin', { id, pinned });
@@ -749,6 +853,7 @@ socket.on('productions:update', (list) => renderProductions(list));
 socket.on('connect', () => {
   const statusEl = document.getElementById('chat-status');
   if(statusEl) statusEl.textContent = '● live';
+  checkMyDoubts();
 });
 socket.on('disconnect', () => {
   const statusEl = document.getElementById('chat-status');
