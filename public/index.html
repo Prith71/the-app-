@@ -149,7 +149,6 @@
         <button class="subtab-btn" data-sixtab="status" onclick="showSixTab('status')">Status</button>
         <button class="subtab-btn" data-sixtab="trailer" onclick="showSixTab('trailer')">Trailer</button>
         <button class="subtab-btn" data-sixtab="bts" onclick="showSixTab('bts')">BTS</button>
-        <button class="subtab-btn" data-sixtab="doubts" onclick="showSixTab('doubts')">Doubts</button>
       </div>
 
       <!-- CREW -->
@@ -218,31 +217,39 @@
         <div class="bts-grid" id="bts-grid"></div>
       </div>
 
-      <!-- DOUBTS -->
-      <div class="subpage" id="six-doubts">
-        <div class="doubt-ask-panel">
-          <div class="section-label" style="margin-bottom:10px;">Ask Core anything</div>
-          <p class="hint" style="margin-bottom:14px;">Fully anonymous — no name attached, only Core can read these.</p>
-          <div class="doubt-suggestions" id="doubt-suggestions"></div>
-          <textarea id="doubt-input" placeholder="Ask a question or raise a doubt…" maxlength="500"></textarea>
-          <button class="btn primary" style="margin-top:12px;" onclick="submitDoubt()">Send anonymously</button>
-          <div class="doubt-sent-msg" id="doubt-sent-msg"></div>
-        </div>
+    </div>
+  </section>
 
-        <div class="my-doubts-panel" id="my-doubts-panel" style="display:none;">
-          <div class="section-label" style="margin:10px 0 10px;">Your Questions</div>
-          <p class="hint" style="margin-bottom:14px;">Only visible on this device — replies show up here once Core answers.</p>
-          <div class="my-doubts-list" id="my-doubts-list"></div>
-        </div>
-
-        <div class="doubt-core-panel">
-          <div class="core-inline" style="margin:36px 0 18px;">
-            <button class="core-pill" id="core-toggle-7" onclick="toggleCore()">🔒 Core access — view questions</button>
-          </div>
-          <div class="doubts-list" id="doubts-list"></div>
-        </div>
+  <!-- DOUBTS (standalone page, outside SIX) -->
+  <section class="page" id="page-doubts">
+    <div class="wrap">
+      <div class="page-head">
+        <div class="section-label">Ask Core</div>
+        <h1 class="page-title">Doubts</h1>
+        <p class="page-sub">Anonymous questions to Core — anyone can ask, only Core can read and reply.</p>
       </div>
 
+      <div class="doubt-ask-panel">
+        <div class="section-label" style="margin-bottom:10px;">Ask Core anything</div>
+        <p class="hint" style="margin-bottom:14px;">Fully anonymous — no name attached, only Core can read these.</p>
+        <div class="doubt-suggestions" id="doubt-suggestions"></div>
+        <textarea id="doubt-input" placeholder="Ask a question or raise a doubt…" maxlength="500"></textarea>
+        <button class="btn primary" style="margin-top:12px;" onclick="submitDoubt()">Send anonymously</button>
+        <div class="doubt-sent-msg" id="doubt-sent-msg"></div>
+      </div>
+
+      <div class="my-doubts-panel" id="my-doubts-panel" style="display:none;">
+        <div class="section-label" style="margin:10px 0 10px;">Your Questions</div>
+        <p class="hint" style="margin-bottom:14px;">Only visible on this device — replies show up here once Core answers.</p>
+        <div class="my-doubts-list" id="my-doubts-list"></div>
+      </div>
+
+      <div class="doubt-core-panel">
+        <div class="core-inline" style="margin:36px 0 18px;">
+          <button class="core-pill" id="core-toggle-7" onclick="toggleCore()">🔒 Core access — view questions</button>
+        </div>
+        <div class="doubts-list" id="doubts-list"></div>
+      </div>
     </div>
   </section>
 
