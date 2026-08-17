@@ -72,6 +72,7 @@ function go(view){
   const btn = document.querySelector('.navlinks button[data-nav="' + navKey + '"]');
   if(btn) btn.classList.add('active');
   if(view === 'chat'){ renderMessages(chatCache); scrollChatToBottom(); }
+  if(view === 'doubts'){ checkMyDoubts(); }
 }
 
 /* ---------------- SIDE MENU (hamburger) ---------------- */
@@ -91,8 +92,7 @@ function toggleMenuSection(key){
 }
 function goToHelp(){
   closeMenu();
-  go('core');
-  showSixTab('doubts');
+  go('doubts');
 }
 document.addEventListener('keydown', (e) => {
   if(e.key === 'Escape'){
@@ -132,7 +132,6 @@ function showSixTab(tab){
   document.querySelector('.subtab-btn[data-sixtab="' + tab + '"]').classList.add('active');
   document.querySelectorAll('.subpage').forEach(p => p.classList.remove('active'));
   document.getElementById('six-' + tab).classList.add('active');
-  if(tab === 'doubts') checkMyDoubts();
 }
 
 /* ---------------- PEOPLE (Founders / Crew — photo + bio, core-only) ---------------- */
