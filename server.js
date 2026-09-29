@@ -85,8 +85,27 @@ function defaultBtsPhotos() {
   return Array.from({ length: BTS_SLOT_COUNT }, emptyBtsSlot);
 }
 
+function emptyWallPerson() {
+  return { photo: '', photoPublicId: '', bio: '' };
+}
+
+// Lines wrapped in *asterisks* render as a big bold title in the UI;
+// lines wrapped in "quotes" render as an italic pull-quote. Everything
+// else is a plain paragraph. See renderWallDescription() in app.js.
+const WALL_DEFAULT_DESCRIPTION = [
+  "A psychological meta-thriller about Siddhartha, a young man who's reality takes an unsettling turn after a strange discovery.",
+  '',
+  '*WALL*',
+  '',
+  'As paranoia sets in, the line between reality and perception begins to blur, leaving Siddhartha questioning everything around him and eventually, himself.',
+  '',
+  '"somewhere between what you know and what you believe lies the truth."',
+  '',
+  'A short film about identity, paranoia, and a reality that may or may not be what it seems.'
+].join('\n');
+
 const DEFAULT_DB = {
-  productions: ['SIX'],
+  productions: ['SIX', 'Wall'],
   status: 'In Production',
   trailer: '',
   messages: [],
@@ -96,7 +115,17 @@ const DEFAULT_DB = {
   bts: { link: '', photos: defaultBtsPhotos() },
   doubts: [],
   doubtSeq: 0,
-  presence: {} // { [chatName]: lastSeenTimestampMs }
+  presence: {}, // { [chatName]: lastSeenTimestampMs }
+  wall: {
+    description: WALL_DEFAULT_DESCRIPTION,
+    crew: [],   // [{id, name, photo, photoPublicId, bio}] — Core adds/removes freely
+    cast: [],   // same shape as crew
+    crewSeq: 0,
+    castSeq: 0,
+    status: '',
+    trailer: '',
+    bts: { link: '', photos: defaultBtsPhotos() }
+  }
 };
 
 // Everything lives in one document in one collection — simplest possible
@@ -165,6 +194,54 @@ function mergeWithDefaults(parsed) {
   // Presence: just a flat name -> lastSeen map, nothing to migrate beyond
   // making sure it exists.
   merged.presence = (parsed && typeof parsed.presence === 'object' && parsed.presence) || {};
+
+  // Wall: dynamic crew/cast lists (Core can add/remove people freely,
+  // unlike the fixed Founders/Crew rosters above), plus description,
+  // status, trailer, and its own BTS gallery.
+  const wallExistedBefore = !!(parsed && parsed.wall);
+  const existingWall = (parsed && parsed.wall) || {};
+  const existingWallBts = existingWall.bts || {};
+  const existingWallBtsPhotos = Array.isArray(existingWallBts.photos) ? existingWallBts.photos : [];
+
+  function migrateWallPersonList(list) {
+    let maxPersonId = 0;
+    const items = (Array.isArray(list) ? list : []).map((p, i) => {
+      const id = typeof p.id === 'number' ? p.id : i + 1;
+      maxPersonId = Math.max(maxPersonId, id);
+      return { ...emptyWallPerson(), ...p, id };
+    });
+    return { items, maxPersonId };
+  }
+  const migratedCrew = migrateWallPersonList(existingWall.crew);
+  const migratedCast = migrateWallPersonList(existingWall.cast);
+
+  merged.wall = {
+    description: typeof existingWall.description === 'string'
+      ? existingWall.description
+      : WALL_DEFAULT_DESCRIPTION,
+    crew: migratedCrew.items,
+    cast: migratedCast.items,
+    crewSeq: Math.max(existingWall.crewSeq || 0, migratedCrew.maxPersonId),
+    castSeq: Math.max(existingWall.castSeq || 0, migratedCast.maxPersonId),
+    status: typeof existingWall.status === 'string' ? existingWall.status : '',
+    trailer: typeof existingWall.trailer === 'string' ? existingWall.trailer : '',
+    bts: {
+      link: typeof existingWallBts.link === 'string' ? existingWallBts.link : '',
+      photos: Array.from({ length: BTS_SLOT_COUNT }, (_, i) => ({
+        ...emptyBtsSlot(),
+        ...(existingWallBtsPhotos[i] || {})
+      }))
+    }
+  };
+
+  // One-time seed: if this Mongo document never had Wall data before (an
+  // existing deployment from before this feature shipped), add "Wall" to
+  // the productions list too. Runs exactly once — after this, Core is
+  // free to remove it and it won't be re-added on the next restart.
+  if (!wallExistedBefore) {
+    const hasWall = merged.productions.some((p) => String(p).trim().toLowerCase() === 'wall');
+    if (!hasWall) merged.productions.push('Wall');
+  }
 
   return merged;
 }
@@ -351,6 +428,111 @@ app.post('/api/bts/:slot/photo', (req, res, next) => {
   });
 });
 
+// Core-only: upload/replace a Wall crew or cast member's photo.
+// e.g. POST /api/wall/crew/3/photo or /api/wall/cast/7/photo
+// Core-only: upload/replace a Wall BTS gallery photo in a given slot (1-20).
+// Registered before the generic /api/wall/:list/:id/photo route below —
+// Express matches routes in definition order, not by specificity, so this
+// more specific path must come first or "bts" would get treated as a
+// :list value and incorrectly rejected as "Unknown list."
+app.post('/api/wall/bts/:slot/photo', (req, res, next) => {
+  const slotNum = parseInt(req.params.slot, 10);
+  if (!Number.isInteger(slotNum) || slotNum < 1 || slotNum > BTS_SLOT_COUNT) {
+    return res.status(404).json({ error: 'Unknown BTS slot.' });
+  }
+  next();
+}, (req, res) => {
+  const slotIndex = parseInt(req.params.slot, 10) - 1;
+  upload.single('photo')(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (req.body.code !== CORE_PASSWORD) {
+      return res.status(401).json({ error: 'Wrong core access code.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No photo received.' });
+    }
+
+    try {
+      const oldPublicId = db.wall.bts.photos[slotIndex].photoPublicId;
+      const publicId = `wall-bts-${slotIndex + 1}-${Date.now()}`;
+      const result = await uploadBufferToCloudinary(
+        req.file.buffer,
+        'angy-productions/wall-bts',
+        publicId
+      );
+
+      db.wall.bts.photos[slotIndex].photo = result.secure_url;
+      db.wall.bts.photos[slotIndex].photoPublicId = result.public_id;
+      saveDb();
+      io.emit('wall:update', db.wall);
+      res.json({ success: true, data: db.wall });
+
+      if (oldPublicId) {
+        cloudinary.uploader.destroy(oldPublicId).catch(() => {});
+      }
+    } catch (uploadErr) {
+      console.error('Cloudinary upload failed:', uploadErr.message);
+      res.status(500).json({
+        error: 'Upload failed on the server. Check your Cloudinary credentials in .env.'
+      });
+    }
+  });
+});
+
+// Core-only: upload/replace a Wall crew or cast member's photo.
+// e.g. POST /api/wall/crew/3/photo or /api/wall/cast/7/photo
+app.post('/api/wall/:list/:id/photo', (req, res, next) => {
+  const { list } = req.params;
+  if (!['crew', 'cast'].includes(list)) {
+    return res.status(404).json({ error: 'Unknown list.' });
+  }
+  next();
+}, (req, res) => {
+  const { list, id } = req.params;
+  upload.single('photo')(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (req.body.code !== CORE_PASSWORD) {
+      return res.status(401).json({ error: 'Wrong core access code.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No photo received.' });
+    }
+    const person = db.wall[list].find((p) => p.id === Number(id));
+    if (!person) {
+      return res.status(404).json({ error: 'Unknown person.' });
+    }
+
+    try {
+      const oldPublicId = person.photoPublicId;
+      const publicId = `wall-${list}-${id}-${Date.now()}`;
+      const result = await uploadBufferToCloudinary(
+        req.file.buffer,
+        `angy-productions/wall-${list}`,
+        publicId
+      );
+
+      person.photo = result.secure_url;
+      person.photoPublicId = result.public_id;
+      saveDb();
+      io.emit('wall:update', db.wall);
+      res.json({ success: true, data: db.wall });
+
+      if (oldPublicId) {
+        cloudinary.uploader.destroy(oldPublicId).catch(() => {});
+      }
+    } catch (uploadErr) {
+      console.error('Cloudinary upload failed:', uploadErr.message);
+      res.status(500).json({
+        error: 'Upload failed on the server. Check your Cloudinary credentials in .env.'
+      });
+    }
+  });
+});
+
 const server = http.createServer(app);
 const io = new Server(server);
 
@@ -384,6 +566,7 @@ io.on('connection', (socket) => {
     founders: db.founders,
     crew: db.crew,
     bts: db.bts,
+    wall: db.wall,
     presence: { online: [...new Set(onlineNames.values())], lastSeen: db.presence }
   });
 
@@ -551,6 +734,97 @@ io.on('connection', (socket) => {
     db[group][id].bio = clean;
     saveDb();
     io.emit(`${group}:update`, db[group]);
+  });
+
+  // ---------------- WALL (second production, dynamic crew/cast) ----------------
+  socket.on('core:set-wall-description', (text) => {
+    if (!socket.data.coreAuthed) return;
+    db.wall.description = String(text || '').slice(0, 3000);
+    saveDb();
+    io.emit('wall:update', db.wall);
+  });
+
+  socket.on('core:set-wall-status', (value) => {
+    if (!socket.data.coreAuthed) return;
+    const clean = String(value || '').slice(0, 100).trim();
+    if (!clean) return;
+    db.wall.status = clean;
+    saveDb();
+    io.emit('wall:update', db.wall);
+  });
+
+  socket.on('core:set-wall-trailer', (value) => {
+    if (!socket.data.coreAuthed) return;
+    db.wall.trailer = String(value || '').slice(0, 500).trim();
+    saveDb();
+    io.emit('wall:update', db.wall);
+  });
+
+  // Unlike the fixed Founders/Crew rosters, Wall's crew and cast are
+  // fully dynamic — Core can add or remove people freely.
+  socket.on('core:wall-add-person', ({ list, name }) => {
+    if (!socket.data.coreAuthed) return;
+    if (!['crew', 'cast'].includes(list)) return;
+    const clean = String(name || '').slice(0, 60).trim();
+    if (!clean) return;
+    const seqKey = list + 'Seq';
+    db.wall[seqKey] += 1;
+    db.wall[list].push({ id: db.wall[seqKey], name: clean, photo: '', photoPublicId: '', bio: '' });
+    saveDb();
+    io.emit('wall:update', db.wall);
+  });
+
+  socket.on('core:wall-remove-person', ({ list, id }) => {
+    if (!socket.data.coreAuthed) return;
+    if (!['crew', 'cast'].includes(list)) return;
+    const idx = db.wall[list].findIndex((p) => p.id === id);
+    if (idx === -1) return;
+    const removed = db.wall[list][idx];
+    db.wall[list].splice(idx, 1);
+    saveDb();
+    io.emit('wall:update', db.wall);
+    if (removed.photoPublicId) {
+      cloudinary.uploader.destroy(removed.photoPublicId).catch(() => {});
+    }
+  });
+
+  socket.on('core:wall-set-person-bio', ({ list, id, bio }) => {
+    if (!socket.data.coreAuthed) return;
+    if (!['crew', 'cast'].includes(list)) return;
+    const person = db.wall[list].find((p) => p.id === id);
+    if (!person) return;
+    person.bio = String(bio || '').slice(0, 2000);
+    saveDb();
+    io.emit('wall:update', db.wall);
+  });
+
+  socket.on('core:set-wall-bts-link', (value) => {
+    if (!socket.data.coreAuthed) return;
+    db.wall.bts.link = String(value || '').slice(0, 500).trim();
+    saveDb();
+    io.emit('wall:update', db.wall);
+  });
+
+  socket.on('core:set-wall-bts-caption', ({ slot, caption }) => {
+    if (!socket.data.coreAuthed) return;
+    const i = Number(slot) - 1;
+    if (!Number.isInteger(i) || i < 0 || i >= BTS_SLOT_COUNT) return;
+    db.wall.bts.photos[i].caption = String(caption || '').slice(0, 160);
+    saveDb();
+    io.emit('wall:update', db.wall);
+  });
+
+  socket.on('core:delete-wall-bts-photo', (slot) => {
+    if (!socket.data.coreAuthed) return;
+    const i = Number(slot) - 1;
+    if (!Number.isInteger(i) || i < 0 || i >= BTS_SLOT_COUNT) return;
+    const oldPublicId = db.wall.bts.photos[i].photoPublicId;
+    db.wall.bts.photos[i] = emptyBtsSlot();
+    saveDb();
+    io.emit('wall:update', db.wall);
+    if (oldPublicId) {
+      cloudinary.uploader.destroy(oldPublicId).catch(() => {});
+    }
   });
 
   // ---------------- BTS (Behind the Scenes) ----------------

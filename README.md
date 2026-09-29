@@ -114,6 +114,29 @@ page like this — say, a Cast page with photos — you'd add one entry to
 `public/app.js`, and the upload endpoint, storage, and live updates all
 work automatically without writing new backend code.
 
+### Wall — a second production, structured differently from SIX
+
+Productions now has a second reel, **Wall**, added automatically the first
+time this version runs (existing deployments get it seeded in once; if
+Core later removes it from the productions list, it won't come back).
+
+Unlike SIX, which has a fixed roster (specific named people whose photo/bio
+Core edits), Wall's **Core Team** and **Cast** are fully dynamic — Core can
+add or remove people freely, each with their own uploadable photo and bio,
+the same as anywhere else on the site.
+
+Wall also has its own **Description** tab, pre-filled with the film's
+logline. A simple text convention controls how it renders:
+- A line wrapped in `*asterisks*` renders as a big bold title.
+- A line wrapped in `"quotes"` renders as an italic pull-quote.
+- Any other line is a normal paragraph.
+
+Core can rewrite the whole description freely using that same convention.
+
+Wall has the same Status, Trailer, and 20-slot BTS gallery as SIX, all
+independent from SIX's — uploading a BTS photo to Wall has no effect on
+SIX's BTS gallery and vice versa.
+
 ### Chat: pinning and deleting messages
 
 - **Delete:** anyone in the chat can delete their own message. Core can
