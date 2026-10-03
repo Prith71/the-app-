@@ -462,6 +462,35 @@ main{ flex:1; }
   font-family:var(--mono); font-size:11px; color:var(--text-dim);
 }
 
+/* ---------- WALL DESCRIPTION ---------- */
+.wall-description-display{ max-width:680px; padding-bottom:10px; }
+.wall-title-line{
+  font-family:var(--display);
+  font-size:clamp(44px, 9vw, 84px);
+  line-height:1;
+  letter-spacing:1px;
+  text-align:center;
+  color:var(--lime);
+  margin:34px 0;
+}
+.wall-desc-para{
+  font-size:15px; line-height:1.75; color:var(--text-dim);
+  margin-bottom:18px; max-width:62ch;
+}
+.wall-quote-line{
+  font-style:italic; font-size:17px; line-height:1.6; color:var(--text);
+  border-left:3px solid var(--hot); padding-left:18px;
+  margin:26px 0; max-width:58ch;
+}
+#wall-description-edit{ flex-direction:column; align-items:stretch; max-width:680px; }
+#wall-description-edit textarea{
+  width:100%; min-height:220px; resize:vertical;
+  background:var(--ink-panel); border:1px solid var(--ink-line); color:var(--text);
+  padding:12px 14px; border-radius:8px; font-family:var(--body); font-size:13px; line-height:1.6;
+}
+#wall-description-edit textarea:focus{ outline:none; border-color:var(--lime); }
+#wall-description-edit .btn{ align-self:flex-start; }
+
 /* ---------- FOUNDERS ---------- */
 .founders-grid{
   display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr));

@@ -128,10 +128,16 @@ function filterCast(){
   renderSixCast(document.getElementById('cast-search').value);
 }
 function showSixTab(tab){
-  document.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('.subtab-btn[data-sixtab="' + tab + '"]').classList.add('active');
-  document.querySelectorAll('.subpage').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#page-core .subtab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('#page-core .subtab-btn[data-sixtab="' + tab + '"]').classList.add('active');
+  document.querySelectorAll('#page-core .subpage').forEach(p => p.classList.remove('active'));
   document.getElementById('six-' + tab).classList.add('active');
+}
+function showWallTab(tab){
+  document.querySelectorAll('#page-wall .subtab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('#page-wall .subtab-btn[data-walltab="' + tab + '"]').classList.add('active');
+  document.querySelectorAll('#page-wall .subpage').forEach(p => p.classList.remove('active'));
+  document.getElementById('wall-' + tab).classList.add('active');
 }
 
 /* ---------------- PEOPLE (Founders / Crew — photo + bio, core-only) ---------------- */
@@ -207,6 +213,7 @@ socket.on('founders:update', (data) => { peopleCache.founders = data; renderPeop
 socket.on('crew:update', (data) => { peopleCache.crew = data; renderPeople('crew'); });
 
 /* ---------------- PRODUCTIONS ---------------- */
+const PRODUCTION_DETAIL_PAGES = { six: 'core', wall: 'wall' };
 function renderProductions(list){
   productionsCache = list;
   const grid = document.getElementById('reel-grid');
@@ -215,12 +222,14 @@ function renderProductions(list){
   const statEl = document.getElementById('stat-productions');
   if(statEl) statEl.textContent = list.length;
   grid.innerHTML = list.map((title, i) => {
-    const clickable = title.trim().toLowerCase() === 'six';
-    const titleHtml = clickable
+    const key = title.trim().toLowerCase();
+    const detailPage = PRODUCTION_DETAIL_PAGES[key];
+    const clickable = !!detailPage;
+    const titleHtml = key === 'six'
       ? `<div class="reel-six-logo-wrap"><img class="reel-six-logo" src="assets/six-logo.png" alt="${escapeHtml(title)} logo"></div>`
       : `<div class="reel-title">${escapeHtml(title)}</div>`;
     return `
-    <div class="reel-card${clickable ? ' clickable six' : ''}" ${clickable ? `onclick="go('core')"` : ''}>
+    <div class="reel-card${clickable ? ' clickable' : ''}${key === 'six' ? ' six' : ''}" ${clickable ? `onclick="go('${detailPage}')"` : ''}>
       <div>
         <div class="reel-index">Reel ${String(i+1).padStart(2,'0')}</div>
         ${titleHtml}
@@ -251,6 +260,7 @@ function toggleCore(){
     renderMessages(chatCache);
     renderBts();
     renderDoubts();
+    renderWall();
     return;
   }
   openUnlockModal();
@@ -274,6 +284,7 @@ socket.on('core:auth:result', (res) => {
     renderMessages(chatCache);
     renderBts();
     renderDoubts();
+    renderWall();
   }else{
     const left = res.remaining !== undefined ? ` (${res.remaining} attempt${res.remaining===1?'':'s'} left)` : '';
     document.getElementById('core-modal-error').textContent = 'Wrong code.' + left;
@@ -350,16 +361,16 @@ function confirmModalAction(){
 }
 
 function setCoreUI(){
-  ['core-toggle','core-toggle-2','core-toggle-3','core-toggle-4','core-toggle-5','core-toggle-6','core-toggle-7'].forEach(id => {
-    const pill = document.getElementById(id);
-    if(!pill) return;
+  document.querySelectorAll('.core-pill').forEach(pill => {
     pill.textContent = coreUnlocked ? '✅ Core mode' : '🔒 Core access';
     pill.classList.toggle('on', coreUnlocked);
   });
-  document.getElementById('add-row').style.display = coreUnlocked ? 'flex' : 'none';
-  document.getElementById('status-edit').style.display = coreUnlocked ? 'flex' : 'none';
-  document.getElementById('trailer-edit').style.display = coreUnlocked ? 'flex' : 'none';
-  document.getElementById('bts-link-edit').style.display = coreUnlocked ? 'flex' : 'none';
+  ['add-row','status-edit','trailer-edit','bts-link-edit',
+   'wall-description-edit','wall-crew-add-row','wall-cast-add-row',
+   'wall-status-edit','wall-trailer-edit','wall-bts-link-edit'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = coreUnlocked ? 'flex' : 'none';
+  });
 }
 
 /* ---------------- STATUS ---------------- */
@@ -501,6 +512,238 @@ function deleteBtsPhoto(slot){
   openConfirmModal('Delete this BTS photo and caption?', () => socket.emit('core:delete-bts-photo', slot));
 }
 socket.on('bts:update', (data) => { btsCache = data; renderBts(); });
+
+/* ---------------- WALL (second production, dynamic crew/cast) ---------------- */
+let wallCache = { description: '', crew: [], cast: [], status: '', trailer: '', bts: { link: '', photos: [] } };
+
+function renderWall(){
+  renderWallDescription();
+  renderWallPersonList('crew');
+  renderWallPersonList('cast');
+  document.getElementById('wall-status-display').textContent = wallCache.status || 'No status set yet.';
+  document.getElementById('wall-status-input').value = wallCache.status || '';
+  renderWallTrailer();
+  renderWallBts();
+}
+
+/* ---- Description: lines wrapped in *asterisks* render bold/bigger,
+   lines wrapped in "quotes" render as an italic pull-quote ---- */
+function renderWallDescription(){
+  const text = wallCache.description || '';
+  const html = text.split('\n').map(line => {
+    const trimmed = line.trim();
+    if(!trimmed) return '';
+    const boldMatch = trimmed.match(/^\*(.+)\*$/);
+    if(boldMatch) return `<div class="wall-title-line">${escapeHtml(boldMatch[1])}</div>`;
+    const quoteMatch = trimmed.match(/^"(.+)"$/);
+    if(quoteMatch) return `<p class="wall-quote-line">"${escapeHtml(quoteMatch[1])}"</p>`;
+    return `<p class="wall-desc-para">${escapeHtml(trimmed)}</p>`;
+  }).join('');
+  document.getElementById('wall-description-display').innerHTML = html || '<div class="doubt-empty">No description yet.</div>';
+  document.getElementById('wall-description-input').value = text;
+}
+function saveWallDescription(){
+  const val = document.getElementById('wall-description-input').value;
+  socket.emit('core:set-wall-description', val);
+}
+
+/* ---- Crew / Cast: dynamic, addable/removable, with photo + bio per person ---- */
+function renderWallPersonList(listName){
+  const arr = wallCache[listName] || [];
+  const grid = document.getElementById('wall-' + listName + '-grid');
+  if(!grid) return;
+  if(arr.length === 0){
+    grid.innerHTML = coreUnlocked
+      ? '<div class="doubt-empty">No one added yet — use the box above to add someone.</div>'
+      : '<div class="doubt-empty">Nothing here yet.</div>';
+    return;
+  }
+  grid.innerHTML = arr.map(p => {
+    const photoHtml = p.photo
+      ? `<img src="${escapeHtml(p.photo)}" alt="${escapeHtml(p.name)}">`
+      : `<div class="placeholder">No photo yet</div>`;
+    return `
+      <div class="founder-card">
+        <div class="founder-top">
+          <div class="founder-photo">${photoHtml}</div>
+          <div class="founder-id">
+            <div class="founder-name">${escapeHtml(p.name)}</div>
+          </div>
+        </div>
+        <div class="founder-bio${p.bio ? '' : ' empty'}">
+          ${p.bio ? escapeHtml(p.bio) : (coreUnlocked ? 'No bio yet — add one below.' : 'No bio yet.')}
+        </div>
+        <div class="founder-edit${coreUnlocked ? ' show' : ''}">
+          <textarea id="wall-bio-input-${listName}-${p.id}" placeholder="Write a short bio for ${escapeHtml(p.name)}…">${escapeHtml(p.bio || '')}</textarea>
+          <div class="founder-edit-row">
+            <button class="btn primary" onclick="saveWallPersonBio('${listName}', ${p.id})">Save bio</button>
+          </div>
+          <div class="founder-edit-row">
+            <input type="file" id="wall-photo-input-${listName}-${p.id}" accept="image/*">
+            <button class="btn" onclick="uploadWallPersonPhoto('${listName}', ${p.id})">Upload photo</button>
+          </div>
+          <div class="founder-upload-status" id="wall-upload-status-${listName}-${p.id}"></div>
+          <div class="founder-edit-row">
+            <button class="reel-remove" onclick="removeWallPerson('${listName}', ${p.id})">Remove ${listName === 'crew' ? 'crew member' : 'cast member'}</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+function addWallPerson(listName){
+  const input = document.getElementById('wall-' + listName + '-name-input');
+  const val = input.value.trim();
+  if(!val) return;
+  socket.emit('core:wall-add-person', { list: listName, name: val });
+  input.value = '';
+}
+function removeWallPerson(listName, id){
+  openConfirmModal(
+    `Remove this ${listName === 'crew' ? 'crew' : 'cast'} member? This deletes their photo and bio too.`,
+    () => socket.emit('core:wall-remove-person', { list: listName, id })
+  );
+}
+function saveWallPersonBio(listName, id){
+  const val = document.getElementById(`wall-bio-input-${listName}-${id}`).value.trim();
+  socket.emit('core:wall-set-person-bio', { list: listName, id, bio: val });
+}
+function uploadWallPersonPhoto(listName, id){
+  const fileInput = document.getElementById(`wall-photo-input-${listName}-${id}`);
+  const statusEl = document.getElementById(`wall-upload-status-${listName}-${id}`);
+  const file = fileInput.files[0];
+  if(!file){ statusEl.textContent = 'Pick an image file first.'; return; }
+  openUploadCodeModal('Confirm your core access code to upload this photo.', async (code) => {
+    statusEl.textContent = 'Uploading…';
+    try{
+      const form = new FormData();
+      form.append('photo', file);
+      form.append('code', code);
+      const res = await fetch(`/api/wall/${listName}/${id}/photo`, { method: 'POST', body: form });
+      const data = await res.json();
+      if(!res.ok){
+        statusEl.textContent = data.error || 'Upload failed.';
+        return;
+      }
+      statusEl.textContent = 'Uploaded ✓';
+      fileInput.value = '';
+    }catch(e){
+      statusEl.textContent = 'Upload failed — check your connection.';
+    }
+  });
+}
+
+/* ---- Status ---- */
+function saveWallStatus(){
+  const val = document.getElementById('wall-status-input').value.trim();
+  if(!val) return;
+  socket.emit('core:set-wall-status', val);
+}
+
+/* ---- Trailer ---- */
+function renderWallTrailer(){
+  const el = document.getElementById('wall-trailer-display');
+  const link = wallCache.trailer;
+  if(!link){
+    el.innerHTML = '<div class="trailer-empty">No trailer uploaded yet.</div>';
+  }else{
+    const embed = toEmbedUrl(link);
+    el.innerHTML = embed
+      ? `<div class="trailer-embed"><iframe src="${embed}" title="Trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+      : `<div class="trailer-link-card">Trailer link: <a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link)}</a></div>`;
+  }
+  document.getElementById('wall-trailer-input').value = link || '';
+}
+function saveWallTrailer(){
+  const val = document.getElementById('wall-trailer-input').value.trim();
+  socket.emit('core:set-wall-trailer', val);
+}
+
+/* ---- BTS ---- */
+function renderWallBts(){
+  const linkEl = document.getElementById('wall-bts-link-display');
+  const link = wallCache.bts.link;
+  if(!link){
+    linkEl.innerHTML = '<div class="trailer-empty">No BTS footage linked yet.</div>';
+  }else{
+    const embed = toEmbedUrl(link);
+    linkEl.innerHTML = embed
+      ? `<div class="trailer-embed"><iframe src="${embed}" title="BTS footage" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+      : `<div class="trailer-link-card">BTS link: <a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link)}</a></div>`;
+  }
+  document.getElementById('wall-bts-link-input').value = link || '';
+
+  const grid = document.getElementById('wall-bts-grid');
+  const photos = wallCache.bts.photos || [];
+  const slotsHtml = [];
+  for(let i = 0; i < 20; i++){
+    const slotNum = i + 1;
+    const data = photos[i] || { photo: '', caption: '' };
+    const hasPhoto = !!data.photo;
+    if(!hasPhoto && !coreUnlocked) continue;
+    const photoHtml = hasPhoto
+      ? `<img src="${escapeHtml(data.photo)}" alt="BTS photo ${slotNum}">`
+      : `<div class="placeholder">Empty slot</div>`;
+    slotsHtml.push(`
+      <div class="bts-slot">
+        <div class="bts-slot-photo">${photoHtml}</div>
+        <div class="bts-slot-num">Slot ${String(slotNum).padStart(2,'0')}</div>
+        <div class="bts-caption${data.caption ? '' : ' empty'}">${data.caption ? escapeHtml(data.caption) : (coreUnlocked ? 'No caption yet.' : '')}</div>
+        ${coreUnlocked ? `
+          <div class="bts-slot-edit">
+            <input type="text" id="wall-bts-caption-input-${slotNum}" placeholder="Short caption (~20 words)" value="${escapeHtml(data.caption || '')}">
+            <input type="file" id="wall-bts-photo-input-${slotNum}" accept="image/*">
+            <div class="bts-slot-btn-row">
+              <button class="btn primary" onclick="saveWallBtsCaption(${slotNum})">Save caption</button>
+              <button class="btn" onclick="uploadWallBtsPhoto(${slotNum})">Upload</button>
+              ${hasPhoto ? `<button class="reel-remove" onclick="deleteWallBtsPhoto(${slotNum})">Delete</button>` : ''}
+            </div>
+            <div class="bts-slot-status" id="wall-bts-status-${slotNum}"></div>
+          </div>
+        ` : ''}
+      </div>
+    `);
+  }
+  grid.innerHTML = slotsHtml.length
+    ? slotsHtml.join('')
+    : '<div class="doubt-empty">No BTS photos yet.</div>';
+}
+function saveWallBtsLink(){
+  const val = document.getElementById('wall-bts-link-input').value.trim();
+  socket.emit('core:set-wall-bts-link', val);
+}
+function saveWallBtsCaption(slot){
+  const val = document.getElementById('wall-bts-caption-input-' + slot).value.trim();
+  socket.emit('core:set-wall-bts-caption', { slot, caption: val });
+}
+function uploadWallBtsPhoto(slot){
+  const fileInput = document.getElementById('wall-bts-photo-input-' + slot);
+  const statusEl = document.getElementById('wall-bts-status-' + slot);
+  const file = fileInput.files[0];
+  if(!file){ statusEl.textContent = 'Pick an image file first.'; return; }
+  openUploadCodeModal('Confirm your core access code to upload this BTS photo.', async (code) => {
+    statusEl.textContent = 'Uploading…';
+    try{
+      const form = new FormData();
+      form.append('photo', file);
+      form.append('code', code);
+      const res = await fetch(`/api/wall/bts/${slot}/photo`, { method: 'POST', body: form });
+      const data = await res.json();
+      if(!res.ok){
+        statusEl.textContent = data.error || 'Upload failed.';
+        return;
+      }
+      statusEl.textContent = 'Uploaded ✓';
+      fileInput.value = '';
+    }catch(e){
+      statusEl.textContent = 'Upload failed — check your connection.';
+    }
+  });
+}
+function deleteWallBtsPhoto(slot){
+  openConfirmModal('Delete this BTS photo and caption?', () => socket.emit('core:delete-wall-bts-photo', slot));
+}
+socket.on('wall:update', (data) => { wallCache = data; renderWall(); });
 
 /* ---------------- DOUBTS (anonymous questions to Core) ---------------- */
 const DOUBT_SUGGESTIONS = [
@@ -846,6 +1089,8 @@ socket.on('init', (data) => {
   renderAllPeople();
   btsCache = data.bts || { link: '', photos: [] };
   renderBts();
+  wallCache = data.wall || { description: '', crew: [], cast: [], status: '', trailer: '', bts: { link: '', photos: [] } };
+  renderWall();
   renderPresence(data.presence);
 });
 socket.on('productions:update', (list) => renderProductions(list));
